@@ -1,0 +1,22 @@
+name = "telegram-notify"
+main = "src/index.ts"
+compatibility_date = "2026-04-01"
+
+# Cron Trigger: scan D1 for due notifications every minute.
+[triggers]
+crons = ["* * * * *"]
+
+# D1 database binding. Run `wrangler d1 create telegram-notify-db` and
+# paste the returned database_id here before first deploy.
+[[d1_databases]]
+binding = "DB"
+database_name = "telegram-notify-db"
+database_id = "PASTE_D1_DATABASE_ID_HERE"
+migrations_dir = "migrations"
+
+# Custom domain — set after first deploy.
+# routes = [{ pattern = "telegram-notify.la.fish", custom_domain = true }]
+
+# Bot token + webhook secret are stored as secrets, not in vars.
+# Set with: wrangler secret put BOT_TOKEN ; wrangler secret put WEBHOOK_SECRET
+# For local dev, copy .dev.vars.example to .dev.vars and fill in.

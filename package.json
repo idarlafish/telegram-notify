@@ -1,0 +1,25 @@
+{
+  "name": "telegram-notify",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply telegram-notify-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply telegram-notify-db --remote",
+    "set-webhook": "bun run scripts/set-webhook.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260307.1",
+    "@types/bun": "latest",
+    "wrangler": "^4.71.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@grammyjs/types": "^3.25.0",
+    "grammy": "^1.41.1"
+  }
+}
