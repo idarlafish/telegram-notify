@@ -1,0 +1,93 @@
+# Telegram bot operations
+
+The Worker serves a single bot, **`@sleepy_notify_bot`** (id `8578148373`).
+Token lives in `.env` as `BOT_TOKEN` AND on the Worker as the `BOT_TOKEN`
+secret. Both must match. Same applies to `WEBHOOK_SECRET` and `MESSAGE_KEY`.
+
+## The webhook-secret pitfall (read this first)
+
+When a webhook POST arrives, the Worker validates the
+`x-telegram-bot-api-secret-token` header against `env.WEBHOOK_SECRET` and
+returns **403 with no log line** on mismatch. Telegram queues updates for
+retry, the bot looks dead, and `wrangler tail` shows POSTs returning OK with
+no handler activity. **It is the single most-confusing failure mode in this
+codebase.**
+
+The drift happens when:
+- `wrangler secret put WEBHOOK_SECRET` was run with one value, and
+- `set-webhook` script (which reads from `.env`) registered a different value
+  with Telegram.
+
+**Diagnose:** `bun run bot:check` shows what Telegram thinks the webhook URL
+is. Then run a `wrangler tail` and trigger an action — if you see
+`{"level":"warn","message":"webhook secret mismatch","received_len":N,"expected_len":M}`,
+the lengths give you the smoking gun.
+
+**Fix:** decide which value is canonical (the one in `.env`), then push it to
+the Worker:
+
+```bash
+set -a && source .env && set +a
+printf '%s' "$WEBHOOK_SECRET" | bunx wrangler secret put WEBHOOK_SECRET
+```
+
+No need to re-run `set-webhook` if you sync the Worker side; Telegram already
+has the right value. Verify by triggering one update and watching tail for
+`webhook received` instead of `webhook secret mismatch`.
+
+## The three menu-button-shaped buttons
+
+Users can see up to three different "open the app" entry points on a Telegram
+bot, and they're configured in different places:
+
+| Entry point | Visible as | Where set | Bot API method |
+|---|---|---|---|
+| **Per-chat menu button** | The ≡ icon at bottom-left of chat input, for *one specific user* | `bot.api.setChatMenuButton({ chat_id, menu_button })` | `setChatMenuButton` with `chat_id` |
+| **Bot-wide default menu button** | Same ≡ icon, for *all users* who don't have a per-chat override | `bot.api.setChatMenuButton({ menu_button })` (no `chat_id`) | `setChatMenuButton` |
+| **Profile-level "Open App"** | Prominent button on the bot's profile card, also `t.me/<bot>/<app>` deep links | **@BotFather only** — `/myapps` or `Bot Settings → Configure Mini App` | none — read-only via `getMe.has_main_web_app` |
+
+**Per-chat overrides bot-wide.** That's why `src/telegram/commands/start.ts`
+explicitly resets the per-chat menu to `default` — the old sleepy-notify
+backend installed per-chat overrides pointing at a dev tunnel URL, and they
+persisted for every user who had ever sent `/start` to the old bot.
+
+**The profile-level Mini App is BotFather-only.** `getMe.has_main_web_app`
+tells you if it exists; nothing in the Bot API can edit or delete it. To
+update or remove, go through `@BotFather → /myapps`.
+
+## Stuck UI state in the client
+
+If users report seeing an "old" button after you've cleaned up server-side
+config, the order of operations is:
+
+1. Run `bun run bot:check` to confirm server-side state is correct
+   (`has_main_web_app: false`, `getChatMenuButton: { type: "commands" }` or
+   the Web App URL you want).
+2. If server is clean, the user's client is showing cached data:
+   - **Persistent reply keyboards** (the kind `Keyboard.webApp(...)` sends)
+     stay attached to the user's chat session until the bot sends
+     `reply_markup: { remove_keyboard: true }`. Sending `/start` triggers
+     this in our handler.
+   - **Inline keyboards on old messages** stay forever; their URLs are baked
+     into the message at send time. Only fix is deleting the chat history.
+   - **Telegram client cache of bot profile data** can persist for minutes
+     after server changes. Force-quit the app + reopen.
+
+## Slash-command suggestions
+
+The list shown when a user taps `/` in the chat is configured via
+`setMyCommands`. Run `bun run bot:set-commands` whenever you change the list
+in `scripts/set-commands.ts`. It's a one-shot bot-wide setting; no per-chat
+or per-user variants.
+
+## Useful diagnostics
+
+```bash
+bun run bot:check          # dump every Bot API field we can read
+bun run bot:set-commands   # re-register slash menu
+bun run set-webhook        # re-register webhook URL + secret
+bunx wrangler tail telegram-notify --format=pretty   # live Worker logs
+```
+
+`bot:check` is the first thing to run after any Telegram-side weirdness — it
+tells you whether the issue is server-side config or client-side cache.
