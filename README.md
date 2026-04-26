@@ -1,66 +1,124 @@
 # telegram-notify
 
-Daily Telegram reminders. Cloudflare Workers + D1 + Cron Triggers, free tier.
+Telegram reminder bot — daily / weekday-set / one-time notifications.
 
-Replaces the redis/bullmq/k8s-deployed `sleepy-notify` with edge-hosted infra.
+A single Cloudflare Worker serves the API (Hono), the bot webhook (grammY),
+the cron scheduler, and the React Mini App (Cloudflare Workers Static Assets).
+Storage is Cloudflare D1 with drizzle-orm; messages are encrypted at the
+application layer (AES-256-GCM).
 
-## Architecture
+> Replaced the legacy redis/bullmq/k8s `sleepy-notify` deployment.
 
-- **Worker** (`src/index.ts`): single fetch handler routes Telegram webhooks (`/telegram-webhook`), Mini App API (`/api/*`), and a `/health` endpoint. `scheduled` handler runs every minute.
-- **D1** database holds users + notifications. Indexed on `next_fire_at` so the per-minute cron query is O(log N).
-- **Cron Trigger** (`* * * * *`) calls the scheduled handler → `findDueNotifications` → send via grammY → `recordSent` advances `next_fire_at` to tomorrow.
-- **Auth**: Mini App requests carry `Authorization: tma <initData>`; verified via HMAC-SHA256 against `BOT_TOKEN` per Telegram's spec.
+## Stack
 
-## First-time setup
+| | |
+|---|---|
+| Runtime | Cloudflare Workers (single deploy) |
+| Storage | Cloudflare D1 (drizzle-orm + drizzle-kit) |
+| Backend | Hono, valibot, grammY, vitest |
+| Frontend | React 19, Vite, TanStack Router/Query/Form, valibot |
+| Encryption | AES-256-GCM (Web Crypto), per-record IV |
+
+## Layout
+
+```
+src/                    Worker — API, bot, cron, db, crypto
+  api/                  Hono routes + middleware
+  db/                   drizzle schema + queries + mappers
+  telegram/             grammY webhook + commands
+  scheduler/            cron tick handler
+  lib/                  time math, crypto, logger, errors
+web/                    React Mini App (Bun workspace)
+  src/
+    routes/             ListPage, FormPage, PrivacyPage
+    components/         per-component folders
+    api/                fetch client + TanStack Query hooks + form↔API mappers
+    lib/                Telegram SDK hooks, form schema, time helpers
+    styles/             shared CSS modules
+migrations/             drizzle-kit generated SQL + meta snapshots
+scripts/                bot config (set-webhook, set-commands, check-bot-config)
+docs/                   topical guides — see AGENTS.md
+```
+
+## Setup
 
 ```bash
 bun install
 
-# Create the D1 database; copy the returned database_id into wrangler.toml.
-bunx wrangler d1 create telegram-notify-db
-
-# Apply schema locally (dev) and remotely (prod).
-bun run db:migrate:local
+# D1
+bunx wrangler d1 create telegram-notify-db   # paste id into wrangler.toml
 bun run db:migrate:remote
+bun run db:migrate:local
 
-# Set bot token + webhook secret as Worker secrets.
+# Secrets — both .env (local) and Worker secrets must agree
+cp .dev.vars.example .env
+# edit .env to fill BOT_TOKEN, WEBHOOK_SECRET, MESSAGE_KEY (32-byte base64)
 bunx wrangler secret put BOT_TOKEN
 bunx wrangler secret put WEBHOOK_SECRET
+bunx wrangler secret put MESSAGE_KEY
 
-# Deploy.
+# Generate a fresh MESSAGE_KEY:  openssl rand -base64 32
+
+# Deploy + register the bot webhook
 bun run deploy
-
-# Register the webhook with Telegram (one-off).
-BOT_TOKEN=... WEBHOOK_URL=https://<worker>.workers.dev/telegram-webhook \
-  WEBHOOK_SECRET=... bun run set-webhook
+bun run set-webhook         # reads BOT_TOKEN, WEBHOOK_SECRET, WEBHOOK_URL from env
+bun run bot:set-commands    # registers /start and /stop in Telegram's slash menu
 ```
 
 ## Local dev
 
 ```bash
-cp .dev.vars.example .dev.vars
-# edit .dev.vars with bot token + secret
-bun run dev
+bun run dev:web    # Vite on :5173 (React HMR)
+bun run dev        # wrangler dev on :8787 (D1, secrets, scheduled handler)
 ```
 
-`wrangler dev` runs the Worker locally with a local D1 sqlite file (`.wrangler/state/v3/d1`). Cron triggers don't fire automatically in local dev — invoke manually with `bunx wrangler dev --test-scheduled` and hit `/__scheduled?cron=*+*+*+*+*`.
+Vite proxies `/api`, `/telegram-webhook`, and `/health` to wrangler.
+For real Telegram testing, expose Vite via a Cloudflare Tunnel and register
+the tunnel URL on a *dev* bot (don't repoint the prod webhook).
+
+Cron doesn't fire in local dev by default — trigger manually with
+`bunx wrangler dev --test-scheduled` then `curl http://localhost:8787/__scheduled?cron=*+*+*+*+*`.
 
 ## API
 
-All requests need `Authorization: tma <initData>` header.
+All requests authenticate via `Authorization: tma <initData>` header.
+Wire format speaks `days: WeekDay[]`; bitmasks live only in the database.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| GET | `/api/notifications` | — | `{ items: Notification[] }` |
-| POST | `/api/notifications` | `{ time, timezone, message }` | `{ notification }` (201) |
+| GET    | `/api/notifications` | — | `{ items: Notification[] }` |
+| POST   | `/api/notifications` | `{ kind, time, timezone, message, days?, date? }` (variant on `kind`) | `{ notification }` (201) |
+| PATCH  | `/api/notifications/:id` | partial of POST body | `{ notification }` |
 | DELETE | `/api/notifications/:id` | — | `{ ok: true }` |
+| GET    | `/health` | — | `{ status: "ok" }` |
+| POST   | `/telegram-webhook` | Telegram update (validated by `x-telegram-bot-api-secret-token`) | grammY response |
 
-## Frontend
+## Bot commands
 
-Not in this repo (yet). The existing `sleepy-notify` SvelteKit Mini App can be ported to point at this Worker's API. Plan: deploy frontend to Cloudflare Pages (free), point at this Worker.
+| Command | Effect |
+|---|---|
+| `/start` | Register your account; clear stale per-chat menu overrides; remove old reply keyboards. |
+| `/stop` | Erase your user record and all reminders (CASCADE delete via FK). |
 
 ## Operational notes
 
-- Cron is best-effort. The `findDueNotifications` query uses a 5-minute lookback so a missed cron firing is recovered on the next one.
-- DST: notifications shift ±1h twice a year as `Intl.DateTimeFormat` recomputes the local clock. Re-tune around the change if it matters.
-- All operational state is in D1. No persistent infra to manage.
+- **Atomic deploy** — `bun run deploy` builds the React app and ships it
+  with the Worker in one transaction. Cron may miss one minute during the
+  switch; the 5-minute lookback in `findDueNotifications` recovers it.
+- **Encryption** — `message` field is encrypted with `MESSAGE_KEY` before
+  insert; reads decrypt strictly (no plaintext fallback). Rotation requires a
+  re-encrypt migration script.
+- **Backups** — D1 Time Travel covers the last 30 days for free
+  (`wrangler d1 time-travel restore telegram-notify-db --timestamp …`). Run
+  `wrangler d1 export` before any risky migration.
+- **Privacy policy** — served at `/privacy` (React route). URL is registered
+  in BotFather under Bot Settings → Privacy Policy.
+- **DST** — recurrence times shift ±1h around DST transitions twice a year.
+  `Intl.DateTimeFormat` handles tz math correctly; the user's `time` string
+  stays anchored to local clock.
+
+## Further reading
+
+- `AGENTS.md` — entry point for AI agents (Cursor, Aider, Codex, Claude Code, …).
+- `docs/telegram-bot.md` — bot config, webhook secret pitfall, menu button hierarchy.
+- More topical docs land in `docs/` as needed; see `AGENTS.md` for the index.
