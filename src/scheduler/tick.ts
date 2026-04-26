@@ -28,25 +28,35 @@ async function fireDueNotifications(env: Env, nowMs: number): Promise<void> {
   if (due.length === 0) return;
 
   const bot = createBot(env);
-  for (const n of due) {
-    // At-most-once: advance state BEFORE the Telegram call. If the isolate
-    // dies after Telegram accepts but before recordSent/deleteById, the next
-    // tick would otherwise resend — duplicate reminders are worse than a
-    // missed one. Transient Telegram failures are now handled by the
-    // grammY auto-retry transformer (see telegram/bot.ts), not by lookback.
-    await postFire(env, n, nowMs);
-    try {
-      await bot.api.sendMessage(n.chat_id, n.message, {
-        reply_markup: {
-          inline_keyboard: [[{ text: "✅", callback_data: `done:${n.id}` }]],
-        },
-      });
-    } catch (err) {
-      logger.error("notification send failed (state already advanced)", {
-        id: n.id,
-        error: String(err),
-      });
-    }
+  // Fan out: one row's slow Telegram call no longer blocks the rest of the
+  // batch. Telegram's global limit is ~30 msg/s and per-chat ~1 msg/s — at our
+  // current row counts neither bites; auto-retry handles 429s if either does.
+  await Promise.all(due.map((n) => fireOne(env, bot, n, nowMs)));
+}
+
+async function fireOne(
+  env: Env,
+  bot: ReturnType<typeof createBot>,
+  n: DueNotification,
+  nowMs: number,
+): Promise<void> {
+  // At-most-once: advance state BEFORE the Telegram call. If the isolate
+  // dies after Telegram accepts but before recordSent/deleteById, the next
+  // tick would otherwise resend — duplicate reminders are worse than a
+  // missed one. Transient Telegram failures are handled by the grammY
+  // auto-retry transformer (see telegram/bot.ts), not by lookback.
+  await postFire(env, n, nowMs);
+  try {
+    await bot.api.sendMessage(n.chat_id, n.message, {
+      reply_markup: {
+        inline_keyboard: [[{ text: "✅", callback_data: `done:${n.id}` }]],
+      },
+    });
+  } catch (err) {
+    logger.error("notification send failed (state already advanced)", {
+      id: n.id,
+      error: String(err),
+    });
   }
 }
 
