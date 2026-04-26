@@ -19,3 +19,10 @@ migrations_dir = "migrations"
 # Bot token + webhook secret are stored as secrets, not in vars.
 # Set with: wrangler secret put BOT_TOKEN ; wrangler secret put WEBHOOK_SECRET
 # For local dev, copy .dev.vars.example to .dev.vars and fill in.
+
+# React Mini App built by `bun run build` → web/dist/. SPA fallback so
+# TanStack Router handles client-side routes (/new, /edit/:id, …).
+[assets]
+directory = "./web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
