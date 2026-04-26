@@ -1,15 +1,15 @@
 import { createBot } from "../telegram/bot";
-import { findDueNotifications, recordSent } from "../db/notifications";
+import { findDueNotifications, recordSent, deleteById } from "../db/notifications";
 import { logger } from "../lib/logger";
 import type { Env } from "../env";
 
 // Called by Cron Trigger every minute. Finds notifications whose next_fire_at
 // has passed (within a 5-min lookback to recover missed firings) and sends them.
 export async function fireDueNotifications(
-  env: Env,
-  nowMs: number = Date.now(),
+  env: Env, nowMs: number = Date.now(),
 ): Promise<void> {
   const due = await findDueNotifications(env, nowMs);
+  logger.info("cron tick", { due: due.length });
   if (due.length === 0) return;
 
   const bot = createBot(env);
@@ -20,10 +20,14 @@ export async function fireDueNotifications(
           inline_keyboard: [[{ text: "✅ Done", callback_data: `done:${n.id}` }]],
         },
       });
-      await recordSent(env, n, nowMs);
-      logger.info("notification sent", { id: n.id, chat_id: n.chat_id });
+      if (n.kind === "one_time") {
+        await deleteById(env, n.id);
+        logger.info("one-time fired and deleted", { id: n.id, chat_id: n.chat_id });
+      } else {
+        await recordSent(env, n, nowMs);
+        logger.info("recurring fired", { id: n.id, chat_id: n.chat_id });
+      }
     } catch (err) {
-      // Don't recordSent — let the next minute's cron retry.
       logger.error("notification send failed", { id: n.id, error: String(err) });
     }
   }
