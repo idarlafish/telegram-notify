@@ -88,7 +88,15 @@ export default function FormPage() {
           <RepeatSelector value={f.state.value} onChange={(v) => {
             f.handleChange(v);
             if (v !== "custom") form.setFieldValue("customDays", undefined);
-            if (v !== "one_time") form.setFieldValue("date", undefined);
+            if (v === "one_time") {
+              if (!form.getFieldValue("date")) {
+                form.setFieldValue("date", new Intl.DateTimeFormat("en-CA", {
+                  year: "numeric", month: "2-digit", day: "2-digit",
+                }).format(new Date()));
+              }
+            } else {
+              form.setFieldValue("date", undefined);
+            }
           }} />
         </>
       )}</form.Field>
