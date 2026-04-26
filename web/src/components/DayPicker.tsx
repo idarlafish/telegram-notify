@@ -25,7 +25,7 @@ export function DayPicker(props: { value: WeekDay[]; onChange: (v: WeekDay[]) =>
         <button type="button" className={css.preset}
                 data-selected={isExact(ALL)}
                 onClick={() => props.onChange([...ALL])}>
-          All days
+          Daily
         </button>
         <button type="button" className={css.preset}
                 data-selected={isExact(WEEKDAYS)}
