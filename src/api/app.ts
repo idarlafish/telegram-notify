@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { errorHandler } from "./middleware/error";
 import { notificationsRoutes } from "./notifications";
-import { privacyRoute } from "./privacy";
 import { handleTelegramWebhook } from "../telegram/webhook";
 import type { Env } from "../env";
 
@@ -21,7 +20,6 @@ export function createApp() {
   app.get("/health", (c) => c.json({ status: "ok" }));
   app.post("/telegram-webhook", (c) => handleTelegramWebhook(c.req.raw, c.env));
   app.route("/api/notifications", notificationsRoutes);
-  app.route("/privacy", privacyRoute);
 
   // Anything not matched above is a frontend route — hand it to the asset
   // binding, which serves real files or falls back to index.html (SPA mode).

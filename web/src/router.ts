@@ -17,9 +17,13 @@ const editRoute = createRoute({
   getParentRoute: () => rootRoute, path: "/edit/$id",
   component: lazyRouteComponent(() => import("./routes/FormPage")),
 });
+const privacyRoute = createRoute({
+  getParentRoute: () => rootRoute, path: "/privacy",
+  component: lazyRouteComponent(() => import("./routes/PrivacyPage")),
+});
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([listRoute, newRoute, editRoute]),
+  routeTree: rootRoute.addChildren([listRoute, newRoute, editRoute, privacyRoute]),
 });
 
 declare module "@tanstack/react-router" {
