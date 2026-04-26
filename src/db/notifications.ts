@@ -1,56 +1,114 @@
 import { and, eq, getTableColumns, gt, lte } from "drizzle-orm";
 import { db } from "./client";
 import { notifications, users, type Notification } from "./schema";
-import { computeNextFireAt } from "../lib/time";
+import { daysToBitmask, bitmaskToDays, type WeekDay } from "./mappers";
+import { nextRecurring, oneTimeFireAt } from "../lib/time";
 import type { Env } from "../env";
 
-export type { Notification };
+export type { Notification, WeekDay };
 
-export interface NotificationInput {
-  time: string;
-  timezone: string;
-  message: string;
-}
+export type NotificationRow = Omit<Notification, "weekdays"> & { days?: WeekDay[] };
+
+export type RecurringInput = {
+  kind: "recurring"; time: string; timezone: string; message: string; days: WeekDay[];
+};
+export type OneTimeInput = {
+  kind: "one_time"; time: string; timezone: string; message: string; date: string;
+};
+export type NotificationInput = RecurringInput | OneTimeInput;
 
 export type DueNotification = Notification & { chat_id: number };
 
-// Catch firings missed by a previous cron tick (worker briefly unavailable).
 const LOOKBACK_MS = 5 * 60_000;
 
-export async function listByUser(env: Env, userId: number): Promise<Notification[]> {
-  return db(env)
-    .select()
-    .from(notifications)
+function rowToApi(n: Notification): NotificationRow {
+  const { weekdays, ...rest } = n;
+  if (n.kind === "recurring") return { ...rest, days: bitmaskToDays(weekdays!) };
+  return rest;
+}
+
+function computeNextFire(input: NotificationInput): number {
+  if (input.kind === "recurring") {
+    return nextRecurring(input.time, input.timezone, daysToBitmask(input.days));
+  }
+  return oneTimeFireAt(input.date, input.time, input.timezone);
+}
+
+export async function listByUser(env: Env, userId: number): Promise<NotificationRow[]> {
+  const rows = await db(env)
+    .select().from(notifications)
     .where(eq(notifications.user_id, userId))
     .orderBy(notifications.time);
+  return rows.map(rowToApi);
 }
 
 export async function createNotification(
-  env: Env,
-  userId: number,
-  input: NotificationInput,
-): Promise<Notification> {
+  env: Env, userId: number, input: NotificationInput,
+): Promise<NotificationRow> {
   const id = crypto.randomUUID();
-  const next = computeNextFireAt(input.time, input.timezone);
-  const [row] = await db(env)
-    .insert(notifications)
-    .values({
-      id,
-      user_id: userId,
-      time: input.time,
-      timezone: input.timezone,
-      message: input.message,
-      next_fire_at: next,
-    })
-    .returning();
+  const next = computeNextFire(input);
+  const [row] = await db(env).insert(notifications).values({
+    id, user_id: userId, message: input.message,
+    time: input.time, timezone: input.timezone,
+    kind: input.kind,
+    weekdays: input.kind === "recurring" ? daysToBitmask(input.days) : null,
+    next_fire_at: next,
+  }).returning();
   if (!row) throw new Error("insert returned no row");
-  return row;
+  return rowToApi(row);
+}
+
+export type UpdateInput = Partial<{
+  time: string; timezone: string; message: string;
+  days: WeekDay[]; date: string;
+}>;
+
+export async function updateNotification(
+  env: Env, userId: number, id: string, patch: UpdateInput,
+): Promise<NotificationRow | null> {
+  const [cur] = await db(env)
+    .select().from(notifications)
+    .where(and(eq(notifications.id, id), eq(notifications.user_id, userId)))
+    .limit(1);
+  if (!cur) return null;
+
+  const merged: NotificationInput = cur.kind === "recurring"
+    ? {
+        kind: "recurring",
+        time: patch.time ?? cur.time,
+        timezone: patch.timezone ?? cur.timezone,
+        message: patch.message ?? cur.message,
+        days: patch.days ?? bitmaskToDays(cur.weekdays!),
+      }
+    : {
+        kind: "one_time",
+        time: patch.time ?? cur.time,
+        timezone: patch.timezone ?? cur.timezone,
+        message: patch.message ?? cur.message,
+        date: patch.date ?? new Intl.DateTimeFormat("en-CA", {
+          timeZone: cur.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+        }).format(new Date(cur.next_fire_at)),
+      };
+
+  const recompute =
+    patch.time !== undefined || patch.timezone !== undefined ||
+    patch.days !== undefined || patch.date !== undefined;
+
+  const update: Record<string, unknown> = {
+    time: merged.time, timezone: merged.timezone, message: merged.message,
+  };
+  if (merged.kind === "recurring") update.weekdays = daysToBitmask(merged.days);
+  if (recompute) update.next_fire_at = computeNextFire(merged);
+
+  const [updated] = await db(env)
+    .update(notifications).set(update)
+    .where(and(eq(notifications.id, id), eq(notifications.user_id, userId)))
+    .returning();
+  return updated ? rowToApi(updated) : null;
 }
 
 export async function deleteNotification(
-  env: Env,
-  userId: number,
-  id: string,
+  env: Env, userId: number, id: string,
 ): Promise<boolean> {
   const result = await db(env)
     .delete(notifications)
@@ -58,34 +116,29 @@ export async function deleteNotification(
   return (result.meta.changes ?? 0) > 0;
 }
 
-export async function findDueNotifications(
-  env: Env,
-  nowMs: number,
-): Promise<DueNotification[]> {
-  return db(env)
-    .select({
-      ...getTableColumns(notifications),
-      chat_id: users.chat_id,
-    })
-    .from(notifications)
-    .innerJoin(users, eq(users.id, notifications.user_id))
-    .where(
-      and(
-        lte(notifications.next_fire_at, nowMs),
-        gt(notifications.next_fire_at, nowMs - LOOKBACK_MS),
-      ),
-    );
+export async function deleteById(env: Env, id: string): Promise<void> {
+  await db(env).delete(notifications).where(eq(notifications.id, id));
 }
 
-// Single statement = atomic. Bumps next_fire_at to tomorrow's local instance.
+export async function findDueNotifications(
+  env: Env, nowMs: number,
+): Promise<DueNotification[]> {
+  return db(env)
+    .select({ ...getTableColumns(notifications), chat_id: users.chat_id })
+    .from(notifications)
+    .innerJoin(users, eq(users.id, notifications.user_id))
+    .where(and(
+      lte(notifications.next_fire_at, nowMs),
+      gt(notifications.next_fire_at, nowMs - LOOKBACK_MS),
+    ));
+}
+
 export async function recordSent(
-  env: Env,
-  n: DueNotification,
-  sentAtMs: number,
+  env: Env, n: DueNotification, sentAtMs: number,
 ): Promise<void> {
-  const next = computeNextFireAt(n.time, n.timezone, sentAtMs);
-  await db(env)
-    .update(notifications)
+  // Caller branches on kind; this is recurring-only.
+  const next = nextRecurring(n.time, n.timezone, n.weekdays!, sentAtMs);
+  await db(env).update(notifications)
     .set({ last_sent_at: sentAtMs, next_fire_at: next })
     .where(eq(notifications.id, n.id));
 }
