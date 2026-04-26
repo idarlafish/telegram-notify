@@ -2,11 +2,11 @@
 // Useful to identify stray Mini App / menu button URLs left from old setups.
 //
 // Run:  BOT_TOKEN=... bun run scripts/check-bot-config.ts
-// Note: profile-level Mini App URLs (set via @BotFather → /myapps or
-// Bot Settings → Configure Mini App) are NOT exposed by the Bot API. If a
-// Start/Open-App button still points at ngrok after running this, that
-// registration lives in BotFather only.
-export {};
+//
+// Note: profile-level Mini App URLs (set via @BotFather → /myapps) are NOT
+// exposed by the Bot API. If a Start/Open-App button still points at a stale
+// URL after running this, that registration lives in BotFather only.
+import { Bot } from "grammy";
 
 const token = process.env.BOT_TOKEN;
 if (!token) {
@@ -14,24 +14,23 @@ if (!token) {
   process.exit(1);
 }
 
-const ENDPOINTS = [
-  "getMe",
-  "getMyName",
-  "getMyDescription",
-  "getMyShortDescription",
-  "getMyCommands",
-  "getChatMenuButton",         // no chat_id → default for all chats
-  "getMyDefaultAdministratorRights",
-  "getWebhookInfo",
-] as const;
+const bot = new Bot(token);
+const calls = {
+  getMe: () => bot.api.getMe(),
+  getMyName: () => bot.api.getMyName(),
+  getMyDescription: () => bot.api.getMyDescription(),
+  getMyShortDescription: () => bot.api.getMyShortDescription(),
+  getMyCommands: () => bot.api.getMyCommands(),
+  getChatMenuButton: () => bot.api.getChatMenuButton(),
+  getMyDefaultAdministratorRights: () => bot.api.getMyDefaultAdministratorRights(),
+  getWebhookInfo: () => bot.api.getWebhookInfo(),
+};
 
-for (const ep of ENDPOINTS) {
-  const r = await fetch(`https://api.telegram.org/bot${token}/${ep}`);
-  const json = await r.json() as { ok: boolean; result?: unknown; description?: string };
-  console.log(`\n=== ${ep} ===`);
-  if (!json.ok) {
-    console.log(`  error: ${json.description}`);
-    continue;
+for (const [name, call] of Object.entries(calls)) {
+  console.log(`\n=== ${name} ===`);
+  try {
+    console.log(JSON.stringify(await call(), null, 2));
+  } catch (err) {
+    console.log(`  error: ${err instanceof Error ? err.message : String(err)}`);
   }
-  console.log(JSON.stringify(json.result, null, 2));
 }

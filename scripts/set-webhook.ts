@@ -1,7 +1,7 @@
 // Set the Telegram bot's webhook URL. Run once after first deploy:
 //   BOT_TOKEN=... WEBHOOK_URL=https://telegram-notify.la.fish/telegram-webhook \
 //   WEBHOOK_SECRET=... bun run scripts/set-webhook.ts
-export {};
+import { Bot } from "grammy";
 
 const token = process.env.BOT_TOKEN;
 const url = process.env.WEBHOOK_URL;
@@ -12,15 +12,10 @@ if (!token || !url || !secret) {
   process.exit(1);
 }
 
-const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({
-    url,
-    secret_token: secret,
-    drop_pending_updates: true,
-    allowed_updates: ["message", "callback_query"],
-  }),
+const bot = new Bot(token);
+await bot.api.setWebhook(url, {
+  secret_token: secret,
+  drop_pending_updates: true,
+  allowed_updates: ["message", "callback_query"],
 });
-
-console.log(await res.json());
+console.log("webhook set");
