@@ -2,17 +2,30 @@ import { useNavigate } from "@tanstack/react-router";
 import type { Notification } from "../api/types";
 import { formatLocalTime, daysSummary, countdownText } from "../lib/time";
 import css from "./ReminderCard.module.css";
+import sunriseUrl from "../assets/sunrise.svg";
+import sunUrl from "../assets/sun.svg";
+import sunsetUrl from "../assets/sunset.svg";
+import moonUrl from "../assets/moon.svg";
 
-function periodOf(time: string): "morning" | "day" | "evening" | "night" {
+type Period = "morning" | "day" | "evening" | "night";
+
+function periodOf(time: string): Period {
   const h = Number(time.split(":")[0] ?? 0);
   if (h >= 5 && h < 12) return "morning";
   if (h >= 12 && h < 17) return "day";
   if (h >= 17 && h < 21) return "evening";
   return "night";
 }
-function iconOf(period: string) {
-  return period === "morning" ? "🌅" : period === "day" ? "☀️" : period === "evening" ? "🌇" : "🌙";
+
+function iconOf(period: Period): string {
+  switch (period) {
+    case "morning": return sunriseUrl;
+    case "day":     return sunUrl;
+    case "evening": return sunsetUrl;
+    case "night":   return moonUrl;
+  }
 }
+
 function summary(n: Notification): string {
   if (n.kind === "one_time") {
     const d = new Intl.DateTimeFormat("en-GB", {
@@ -29,7 +42,7 @@ export function ReminderCard({ n }: { n: Notification }) {
   return (
     <div className={`gradient ${css.card}`} data-period={period}
          onClick={() => navigate({ to: "/edit/$id", params: { id: n.id } })}>
-      <div className={css.icon}>{iconOf(period)}</div>
+      <img className={css.icon} src={iconOf(period)} alt="" />
       <div className={css.time}>{formatLocalTime(n.next_fire_at, n.timezone)}</div>
       <div className={css.message}>{n.message}</div>
       <div className={css.foot}>
