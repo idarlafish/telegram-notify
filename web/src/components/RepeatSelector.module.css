@@ -1,0 +1,11 @@
+.row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.chip {
+  padding: 7px 13px; border-radius: 16px;
+  background: rgba(0,0,0,0.06);
+  border: none; font-size: 13px; cursor: pointer;
+  font-family: inherit; color: inherit;
+}
+.chip[data-selected="true"] {
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #fff);
+}
