@@ -30,6 +30,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@grammyjs/auto-retry": "^2.0.2",
     "@grammyjs/types": "^3.25.0",
     "@hono/valibot-validator": "^0.6.1",
     "drizzle-orm": "^0.45.2",
