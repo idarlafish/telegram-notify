@@ -13,13 +13,17 @@ export function createApp() {
     cors({
       origin: "*",
       allowHeaders: ["authorization", "content-type"],
-      allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     }),
   );
 
   app.get("/health", (c) => c.json({ status: "ok" }));
   app.post("/telegram-webhook", (c) => handleTelegramWebhook(c.req.raw, c.env));
   app.route("/api/notifications", notificationsRoutes);
+
+  // Anything not matched above is a frontend route — hand it to the asset
+  // binding, which serves real files or falls back to index.html (SPA mode).
+  app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
   app.onError(errorHandler);
   return app;
