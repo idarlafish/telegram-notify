@@ -3,15 +3,19 @@
   "module": "src/index.ts",
   "type": "module",
   "private": true,
+  "workspaces": ["web"],
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "dev:web": "bun run --cwd web dev",
+    "build": "bun run --cwd web build",
+    "deploy": "bun run build && wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply telegram-notify-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply telegram-notify-db --remote",
     "set-webhook": "bun run scripts/set-webhook.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "test:web": "bun run --cwd web test",
+    "typecheck": "tsc --noEmit && bun run --cwd web typecheck"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260307.1",
