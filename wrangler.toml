@@ -22,6 +22,13 @@ migrations_dir = "migrations"
 binding = "CRON_STATE"
 id = "75110f95428d4bbebc453f2fae407883"
 
+# Analytics Engine: structured per-event telemetry (cron tick, send result,
+# postFire outcome). Free tier covers our volume by orders of magnitude.
+# Query via the Cloudflare GraphQL Analytics API or the Grafana plugin.
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "telegram_notify_events"
+
 # Bot token + webhook secret are stored as secrets, not in vars.
 # Set with: wrangler secret put BOT_TOKEN ; wrangler secret put WEBHOOK_SECRET
 # For local dev, copy .dev.vars.example to .dev.vars and fill in.

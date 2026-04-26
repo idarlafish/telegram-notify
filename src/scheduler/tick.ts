@@ -12,14 +12,17 @@ import type { Env } from "../env";
 // "no value" as stale without doing age math itself.
 const HEARTBEAT_TTL_SECONDS = 10 * 60;
 
-// Called by the Cron Trigger every minute. Composes the work + the heartbeat
-// so each function does exactly one thing and the orchestration is visible
-// at the top level. If `fireDueNotifications` throws (D1 hiccup), we WANT
-// the heartbeat to be skipped — that's how /health/cron alerts on a broken
-// DB connection.
+// Called by the Cron Trigger every minute. The DB *read* (findDueNotifications)
+// stays outside any try in fireDueNotifications, so a broken D1 read still
+// throws up to here and skips the heartbeat — that's our /health/cron alarm
+// for "DB unreachable." Per-row failures (postFire writes, Telegram sends)
+// are now contained in fireOne and surfaced via Analytics Engine instead, so
+// a single bad row no longer kills the rest of the batch.
 export async function runCronTick(env: Env, nowMs: number = Date.now()): Promise<void> {
+  const tickStart = Date.now();
   await fireDueNotifications(env, nowMs);
   await heartbeat(env, nowMs);
+  logger.event(env, "cron_tick", { duration_ms: Date.now() - tickStart });
 }
 
 async function fireDueNotifications(env: Env, nowMs: number): Promise<void> {
@@ -45,19 +48,33 @@ async function fireOne(
   // tick would otherwise resend — duplicate reminders are worse than a
   // missed one. Transient Telegram failures are handled by the grammY
   // auto-retry transformer (see telegram/bot.ts), not by lookback.
-  await postFire(env, n, nowMs);
+  const start = Date.now();
+  let outcome: "ok" | "db_error" | "telegram_error" = "ok";
   try {
-    await bot.api.sendMessage(n.chat_id, n.message, {
-      reply_markup: {
-        inline_keyboard: [[{ text: "✅", callback_data: `done:${n.id}` }]],
-      },
-    });
+    await postFire(env, n, nowMs);
+    try {
+      await bot.api.sendMessage(n.chat_id, n.message, {
+        reply_markup: {
+          inline_keyboard: [[{ text: "✅", callback_data: `done:${n.id}` }]],
+        },
+      });
+    } catch (err) {
+      outcome = "telegram_error";
+      logger.error("notification send failed (state already advanced)", {
+        id: n.id,
+        error: String(err),
+      });
+    }
   } catch (err) {
-    logger.error("notification send failed (state already advanced)", {
-      id: n.id,
-      error: String(err),
-    });
+    outcome = "db_error";
+    logger.error("postFire failed", { id: n.id, error: String(err) });
   }
+  logger.event(env, "fire_one", {
+    id: n.id,
+    kind: n.kind,
+    outcome,
+    duration_ms: Date.now() - start,
+  });
 }
 
 async function postFire(env: Env, n: DueNotification, nowMs: number): Promise<void> {
