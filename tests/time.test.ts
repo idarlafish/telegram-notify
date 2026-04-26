@@ -36,9 +36,20 @@ describe("nextRecurring", () => {
 });
 
 describe("oneTimeFireAt", () => {
-  it("computes UTC ms for a future date+time in tz", () => {
+  it("computes UTC ms for a future date+time in Tokyo (UTC+9)", () => {
     expect(oneTimeFireAt("2026-05-20", "14:30", "Asia/Tokyo"))
       .toBe(Date.UTC(2026, 4, 20, 5, 30, 0));
+  });
+  it("computes UTC ms for an evening time in Asia/Nicosia (UTC+3)", () => {
+    // Regression: positive-tz evening times used to fall outside the old
+    // probe window. 18:15 Nicosia = 15:15 UTC.
+    expect(oneTimeFireAt("2026-05-20", "18:15", "Asia/Nicosia"))
+      .toBe(Date.UTC(2026, 4, 20, 15, 15, 0));
+  });
+  it("computes UTC ms in a UTC-negative tz (America/Los_Angeles, PDT=-7)", () => {
+    // 09:00 LA = 16:00 UTC during PDT
+    expect(oneTimeFireAt("2026-07-15", "09:00", "America/Los_Angeles"))
+      .toBe(Date.UTC(2026, 6, 15, 16, 0, 0));
   });
   it("throws when resolved moment is in the past", () => {
     expect(() => oneTimeFireAt("2020-01-01", "00:00", "UTC")).toThrow();

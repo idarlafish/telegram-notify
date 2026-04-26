@@ -5,7 +5,7 @@ import type { AppBot } from "../bot";
 // tidy; the next day's instance will arrive as a fresh message.
 export function registerDone(bot: AppBot): void {
   bot.callbackQuery(/^done:/, async (ctx) => {
-    await ctx.answerCallbackQuery({ text: "✅ Done" });
+    await ctx.answerCallbackQuery({ text: "✅" });
     try {
       await ctx.deleteMessage();
     } catch {

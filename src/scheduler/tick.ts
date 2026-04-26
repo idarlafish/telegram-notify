@@ -17,7 +17,7 @@ export async function fireDueNotifications(
     try {
       await bot.api.sendMessage(n.chat_id, n.message, {
         reply_markup: {
-          inline_keyboard: [[{ text: "✅ Done", callback_data: `done:${n.id}` }]],
+          inline_keyboard: [[{ text: "✅", callback_data: `done:${n.id}` }]],
         },
       });
       if (n.kind === "one_time") {

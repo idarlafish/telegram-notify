@@ -51,9 +51,9 @@ export default function FormPage() {
         else                   await create.mutateAsync(body);
         haptic("success");
         navigate({ to: "/" });
-      } catch {
+      } catch (e) {
         haptic("error");
-        alert("Could not save — please retry");
+        alert(e instanceof Error ? e.message : "Could not save — please retry");
       }
     },
   });

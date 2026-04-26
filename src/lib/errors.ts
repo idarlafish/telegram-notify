@@ -28,3 +28,9 @@ export class ValidationError extends AppError {
     super("validation_error", message, 400);
   }
 }
+
+export class PastDateError extends AppError {
+  constructor(message = "one-time reminder must be in the future") {
+    super("past_date", message, 400);
+  }
+}

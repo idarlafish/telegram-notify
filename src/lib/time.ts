@@ -1,3 +1,5 @@
+import { PastDateError } from "./errors";
+
 function parseHHMM(time: string): { h: number; m: number } {
   const [hStr, mStr] = time.split(":");
   const h = Number(hStr); const m = Number(mStr);
@@ -45,6 +47,23 @@ export function nextRecurring(
   throw new Error(`no day in mask ${weekdays}`);
 }
 
+// Returns the offset in ms between the given UTC instant and the local clock
+// in `timezone` at that instant. (Local-as-UTC) - (true UTC) = offset.
+function tzOffsetMs(at: number, timezone: string): number {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone, hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+  const parts = fmt.formatToParts(new Date(at));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const localAsUtc = Date.UTC(
+    get("year"), get("month") - 1, get("day"),
+    get("hour") % 24, get("minute"), get("second"),
+  );
+  return localAsUtc - at;
+}
+
 // Single UTC ms for a one-time reminder. Throws if past.
 export function oneTimeFireAt(
   date: string, time: string, timezone: string, nowMs: number = Date.now(),
@@ -53,23 +72,15 @@ export function oneTimeFireAt(
   const dateMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!dateMatch) throw new Error(`invalid date: ${date}`);
   const [, y, mo, d] = dateMatch;
-  const utcMidnight = Date.UTC(Number(y), Number(mo) - 1, Number(d));
 
-  // Walk forward by minute, finding the moment whose local clock in `timezone`
-  // matches (date, h, m). Acceptable because UTC offsets shift local time but
-  // never break monotonicity of UTC ms.
-  let probe = utcMidnight - 14 * 60 * 60_000;
-  for (let i = 0; i < 28 * 60; i++) {
-    const lp = localParts(probe, timezone);
-    const fmtDate = new Intl.DateTimeFormat("en-CA", {
-      timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
-    }).format(new Date(probe));
-    if (fmtDate === date && lp.h === h && lp.m === m) {
-      const result = probe - lp.s * 1000;
-      if (result <= nowMs) throw new Error("one-time reminder must be in the future");
-      return result;
-    }
-    probe += 60_000;
-  }
-  throw new Error(`could not resolve ${date} ${time} in ${timezone}`);
+  // Treat (date, h, m) as if it were UTC, then correct by the tz's offset.
+  // Two-pass to absorb DST: the offset at the rough guess may differ from the
+  // offset at the corrected moment if we cross a DST boundary.
+  const localAsUtc = Date.UTC(Number(y), Number(mo) - 1, Number(d), h, m, 0);
+  const offset1 = tzOffsetMs(localAsUtc, timezone);
+  const offset2 = tzOffsetMs(localAsUtc - offset1, timezone);
+  const result = localAsUtc - offset2;
+
+  if (result <= nowMs) throw new PastDateError();
+  return result;
 }
