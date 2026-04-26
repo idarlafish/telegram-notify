@@ -1,34 +1,46 @@
 import { describe, it, expect } from "vitest";
-import { computeNextFireAt } from "../src/lib/time";
+import { nextRecurring, oneTimeFireAt } from "../src/lib/time";
 
-describe("computeNextFireAt", () => {
-  // 2026-01-15T00:00:00Z is 09:00 in Asia/Tokyo (UTC+9, no DST).
+describe("nextRecurring", () => {
+  // 2026-01-15 is Thu; 00:00 UTC = 09:00 Asia/Tokyo (UTC+9, no DST).
   const fromMs = Date.UTC(2026, 0, 15, 0, 0, 0);
 
-  it("returns today's instance when target hasn't passed yet", () => {
-    // 10:00 Tokyo = 1h after "now" = 2026-01-15T01:00:00Z
-    expect(computeNextFireAt("10:00", "Asia/Tokyo", fromMs)).toBe(
-      Date.UTC(2026, 0, 15, 1, 0, 0),
-    );
+  it("daily mask returns today when target hour is in the future", () => {
+    expect(nextRecurring("10:00", "Asia/Tokyo", 0b1111111, fromMs))
+      .toBe(Date.UTC(2026, 0, 15, 1, 0, 0));
   });
-
-  it("rolls to tomorrow when target has already passed", () => {
-    // It's 09:00 Tokyo; 08:00 Tokyo passed → tomorrow 08:00 Tokyo = 2026-01-15T23:00:00Z
-    expect(computeNextFireAt("08:00", "Asia/Tokyo", fromMs)).toBe(
-      Date.UTC(2026, 0, 15, 23, 0, 0),
-    );
+  it("daily mask rolls to tomorrow when target has passed", () => {
+    expect(nextRecurring("08:00", "Asia/Tokyo", 0b1111111, fromMs))
+      .toBe(Date.UTC(2026, 0, 15, 23, 0, 0));
   });
-
-  it("snaps to top of the target minute regardless of seconds offset", () => {
-    // Move "now" to 09:30:45 Tokyo (= 00:30:45 UTC). Target 10:00 Tokyo → 01:00 UTC sharp.
+  it("weekdays mask (31) on Thu 09:00 → Fri 08:00 Tokyo (Thu 23:00 UTC)", () => {
+    expect(nextRecurring("08:00", "Asia/Tokyo", 31, fromMs))
+      .toBe(Date.UTC(2026, 0, 15, 23, 0, 0));
+  });
+  it("weekends mask (96) on Thu 09:00 → Sat 09:00 Tokyo", () => {
+    expect(nextRecurring("09:00", "Asia/Tokyo", 96, fromMs))
+      .toBe(Date.UTC(2026, 0, 17, 0, 0, 0));
+  });
+  it("Mon+Wed+Fri (mask=21) on Thu → Fri 12:00 Tokyo", () => {
+    expect(nextRecurring("12:00", "Asia/Tokyo", 21, fromMs))
+      .toBe(Date.UTC(2026, 0, 16, 3, 0, 0));
+  });
+  it("snaps to top of target minute regardless of seconds", () => {
     const from = Date.UTC(2026, 0, 15, 0, 30, 45);
-    expect(computeNextFireAt("10:00", "Asia/Tokyo", from)).toBe(
-      Date.UTC(2026, 0, 15, 1, 0, 0),
-    );
+    expect(nextRecurring("10:00", "Asia/Tokyo", 0b1111111, from))
+      .toBe(Date.UTC(2026, 0, 15, 1, 0, 0));
   });
-
   it("throws on malformed time", () => {
-    expect(() => computeNextFireAt("25:99", "UTC")).toThrow();
-    expect(() => computeNextFireAt("not-a-time", "UTC")).toThrow();
+    expect(() => nextRecurring("25:99", "UTC", 127, fromMs)).toThrow();
+  });
+});
+
+describe("oneTimeFireAt", () => {
+  it("computes UTC ms for a future date+time in tz", () => {
+    expect(oneTimeFireAt("2026-05-20", "14:30", "Asia/Tokyo"))
+      .toBe(Date.UTC(2026, 4, 20, 5, 30, 0));
+  });
+  it("throws when resolved moment is in the past", () => {
+    expect(() => oneTimeFireAt("2020-01-01", "00:00", "UTC")).toThrow();
   });
 });
