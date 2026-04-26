@@ -63,7 +63,6 @@ bun run deploy         # vite build → wrangler deploy (atomic)
 
 bun run db:migrate:local     # apply migrations to local D1
 bun run db:migrate:remote    # apply to remote D1
-bun run bot:check            # dump every Bot API config (post-incident diagnostic)
 bun run bot:set-commands     # register slash commands shown in Telegram
 bun run set-webhook          # (re)register the bot webhook URL
 

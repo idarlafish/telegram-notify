@@ -18,10 +18,10 @@ The drift happens when:
 - `set-webhook` script (which reads from `.env`) registered a different value
   with Telegram.
 
-**Diagnose:** `bun run bot:check` shows what Telegram thinks the webhook URL
-is. Then run a `wrangler tail` and trigger an action — if you see
+**Diagnose:** `wrangler tail` and trigger an action — if you see
 `{"level":"warn","message":"webhook secret mismatch","received_len":N,"expected_len":M}`,
-the lengths give you the smoking gun.
+the lengths give you the smoking gun. For URL drift, hit the Bot API directly:
+`curl "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo"`.
 
 **Fix:** decide which value is canonical (the one in `.env`), then push it to
 the Worker:
@@ -60,9 +60,8 @@ update or remove, go through `@BotFather → /myapps`.
 If users report seeing an "old" button after you've cleaned up server-side
 config, the order of operations is:
 
-1. Run `bun run bot:check` to confirm server-side state is correct
-   (`has_main_web_app: false`, `getChatMenuButton: { type: "commands" }` or
-   the Web App URL you want).
+1. Confirm server-side state via the Bot API directly (`getMe.has_main_web_app`,
+   `getChatMenuButton` — `curl https://api.telegram.org/bot$BOT_TOKEN/getMe`).
 2. If server is clean, the user's client is showing cached data:
    - **Persistent reply keyboards** (the kind `Keyboard.webApp(...)` sends)
      stay attached to the user's chat session until the bot sends
@@ -83,11 +82,8 @@ or per-user variants.
 ## Useful diagnostics
 
 ```bash
-bun run bot:check          # dump every Bot API field we can read
 bun run bot:set-commands   # re-register slash menu
 bun run set-webhook        # re-register webhook URL + secret
 bunx wrangler tail telegram-notify --format=pretty   # live Worker logs
+curl "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo"   # what Telegram thinks
 ```
-
-`bot:check` is the first thing to run after any Telegram-side weirdness — it
-tells you whether the issue is server-side config or client-side cache.

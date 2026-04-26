@@ -36,7 +36,7 @@ web/                    React Mini App (Bun workspace)
     lib/                Telegram SDK hooks, form schema, time helpers
     styles/             shared CSS modules
 migrations/             drizzle-kit generated SQL + meta snapshots
-scripts/                bot config (set-webhook, set-commands, check-bot-config)
+scripts/                bot config (set-webhook, set-commands)
 docs/                   topical guides — see AGENTS.md
 ```
 
