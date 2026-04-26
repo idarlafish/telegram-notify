@@ -1,12 +1,8 @@
-import { useForm } from "@tanstack/react-form";
-import { useNavigate, useMatch } from "@tanstack/react-router";
-import { useEffect } from "react";
-import {
-  useCreateNotification, useDeleteNotification, useNotifications, useUpdateNotification,
-} from "../api/hooks";
-import { ReminderFormSchema, type ReminderForm } from "../lib/form-schema";
-import { formToApiBody, apiRowToForm, ALL_DAYS } from "../api/map";
-import { useBackButton, useMainButton, getTimezone, haptic } from "../lib/telegram";
+import { useMatch, useNavigate } from "@tanstack/react-router";
+import { useReminderForm } from "../lib/use-reminder-form";
+import { fieldError } from "../lib/field-error";
+import { ALL_DAYS } from "../api/map";
+import { useBackButton, useMainButton } from "../lib/telegram";
 import { TimeField } from "../components/TimeField";
 import { MessageField } from "../components/MessageField";
 import { DateField } from "../components/DateField";
@@ -14,54 +10,11 @@ import { RepeatSelector } from "../components/RepeatSelector";
 import { DayPicker } from "../components/DayPicker";
 import type { WeekDay } from "../api/types";
 
-const DEFAULTS: ReminderForm = {
-  time: "09:00", repeat: "repeating", days: [...ALL_DAYS], message: "", timezone: getTimezone(),
-};
-
-function fieldError(errors: unknown[] | undefined): string | undefined {
-  const e = errors?.[0];
-  if (!e) return undefined;
-  if (typeof e === "string") return e;
-  if (typeof e === "object" && e && "message" in e) {
-    return String((e as { message: unknown }).message);
-  }
-  return String(e);
-}
-
 export default function FormPage() {
   const navigate = useNavigate();
   const editMatch = useMatch({ from: "/edit/$id", shouldThrow: false });
   const editId = editMatch?.params.id;
-  const isEdit = !!editId;
-
-  const list = useNotifications();
-  const initial = isEdit ? list.data?.items.find((n) => n.id === editId) : undefined;
-
-  const create = useCreateNotification();
-  const update = useUpdateNotification();
-  const remove = useDeleteNotification();
-
-  const form = useForm({
-    defaultValues: initial ? apiRowToForm(initial) : DEFAULTS,
-    validators: { onChange: ReminderFormSchema },
-    onSubmit: async ({ value }) => {
-      try {
-        const body = formToApiBody(value);
-        if (isEdit && editId) await update.mutateAsync({ id: editId, patch: body });
-        else                   await create.mutateAsync(body);
-        haptic("success");
-        navigate({ to: "/" });
-      } catch (e) {
-        haptic("error");
-        alert(e instanceof Error ? e.message : "Could not save — please retry");
-      }
-    },
-  });
-
-  useEffect(() => {
-    if (isEdit && initial) form.reset(apiRowToForm(initial));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initial, isEdit]);
+  const { form, isEdit, handleDelete } = useReminderForm(editId);
 
   useMainButton(isEdit ? "Save" : "Create Reminder", () => form.handleSubmit(), [isEdit]);
   useBackButton(() => navigate({ to: "/" }));
@@ -85,9 +38,7 @@ export default function FormPage() {
           <RepeatSelector value={f.state.value} onChange={(v) => {
             f.handleChange(v);
             if (v === "repeating") {
-              if (!form.getFieldValue("days")?.length) {
-                form.setFieldValue("days", [...ALL_DAYS]);
-              }
+              if (!form.getFieldValue("days")?.length) form.setFieldValue("days", [...ALL_DAYS]);
               form.setFieldValue("date", undefined);
             } else {
               form.setFieldValue("days", undefined);
@@ -133,12 +84,7 @@ export default function FormPage() {
       )}</form.Field>
 
       {isEdit && (
-        <button type="button"
-          onClick={() => {
-            if (!editId) return;
-            if (!confirm("Delete this reminder?")) return;
-            remove.mutate(editId, { onSuccess: () => navigate({ to: "/" }) });
-          }}
+        <button type="button" onClick={handleDelete}
           style={{
             marginTop: 16, padding: "12px 16px", width: "100%",
             background: "rgba(215,58,58,0.12)", color: "#d73a3a",
