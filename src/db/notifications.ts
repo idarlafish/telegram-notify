@@ -1,16 +1,10 @@
+import { and, eq, getTableColumns, gt, lte } from "drizzle-orm";
+import { db } from "./client";
+import { notifications, users, type Notification } from "./schema";
 import { computeNextFireAt } from "../lib/time";
 import type { Env } from "../env";
 
-export interface Notification {
-  id: string;
-  user_id: number;
-  time: string;            // "HH:MM"
-  timezone: string;        // IANA tz
-  message: string;
-  next_fire_at: number;    // UTC ms
-  last_sent_at: number | null;
-  created_at: number;
-}
+export type { Notification };
 
 export interface NotificationInput {
   time: string;
@@ -24,13 +18,11 @@ export type DueNotification = Notification & { chat_id: number };
 const LOOKBACK_MS = 5 * 60_000;
 
 export async function listByUser(env: Env, userId: number): Promise<Notification[]> {
-  const r = await env.DB.prepare(
-    `SELECT id, user_id, time, timezone, message, next_fire_at, last_sent_at, created_at
-     FROM notifications WHERE user_id = ? ORDER BY time`,
-  )
-    .bind(userId)
-    .all<Notification>();
-  return r.results;
+  return db(env)
+    .select()
+    .from(notifications)
+    .where(eq(notifications.user_id, userId))
+    .orderBy(notifications.time);
 }
 
 export async function createNotification(
@@ -40,21 +32,19 @@ export async function createNotification(
 ): Promise<Notification> {
   const id = crypto.randomUUID();
   const next = computeNextFireAt(input.time, input.timezone);
-  await env.DB.prepare(
-    `INSERT INTO notifications (id, user_id, time, timezone, message, next_fire_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  )
-    .bind(id, userId, input.time, input.timezone, input.message, next)
-    .run();
-
-  const inserted = await env.DB.prepare(
-    `SELECT id, user_id, time, timezone, message, next_fire_at, last_sent_at, created_at
-     FROM notifications WHERE id = ?`,
-  )
-    .bind(id)
-    .first<Notification>();
-  if (!inserted) throw new Error("insert returned no row");
-  return inserted;
+  const [row] = await db(env)
+    .insert(notifications)
+    .values({
+      id,
+      user_id: userId,
+      time: input.time,
+      timezone: input.timezone,
+      message: input.message,
+      next_fire_at: next,
+    })
+    .returning();
+  if (!row) throw new Error("insert returned no row");
+  return row;
 }
 
 export async function deleteNotification(
@@ -62,28 +52,29 @@ export async function deleteNotification(
   userId: number,
   id: string,
 ): Promise<boolean> {
-  const r = await env.DB.prepare(
-    `DELETE FROM notifications WHERE id = ? AND user_id = ?`,
-  )
-    .bind(id, userId)
-    .run();
-  return (r.meta.changes ?? 0) > 0;
+  const result = await db(env)
+    .delete(notifications)
+    .where(and(eq(notifications.id, id), eq(notifications.user_id, userId)));
+  return (result.meta.changes ?? 0) > 0;
 }
 
 export async function findDueNotifications(
   env: Env,
   nowMs: number,
 ): Promise<DueNotification[]> {
-  const r = await env.DB.prepare(
-    `SELECT n.id, n.user_id, n.time, n.timezone, n.message, n.next_fire_at,
-            n.last_sent_at, n.created_at, u.chat_id AS chat_id
-     FROM notifications n
-     JOIN users u ON u.id = n.user_id
-     WHERE n.next_fire_at <= ? AND n.next_fire_at > ?`,
-  )
-    .bind(nowMs, nowMs - LOOKBACK_MS)
-    .all<DueNotification>();
-  return r.results;
+  return db(env)
+    .select({
+      ...getTableColumns(notifications),
+      chat_id: users.chat_id,
+    })
+    .from(notifications)
+    .innerJoin(users, eq(users.id, notifications.user_id))
+    .where(
+      and(
+        lte(notifications.next_fire_at, nowMs),
+        gt(notifications.next_fire_at, nowMs - LOOKBACK_MS),
+      ),
+    );
 }
 
 // Single statement = atomic. Bumps next_fire_at to tomorrow's local instance.
@@ -93,9 +84,8 @@ export async function recordSent(
   sentAtMs: number,
 ): Promise<void> {
   const next = computeNextFireAt(n.time, n.timezone, sentAtMs);
-  await env.DB.prepare(
-    `UPDATE notifications SET last_sent_at = ?, next_fire_at = ? WHERE id = ?`,
-  )
-    .bind(sentAtMs, next, n.id)
-    .run();
+  await db(env)
+    .update(notifications)
+    .set({ last_sent_at: sentAtMs, next_fire_at: next })
+    .where(eq(notifications.id, n.id));
 }
