@@ -13,7 +13,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply telegram-notify-db --remote",
     "set-webhook": "bun run scripts/set-webhook.ts",
     "bot:check": "bun run scripts/check-bot-config.ts",
-    "bot:reset-menu": "bun run scripts/reset-menu-button.ts",
+    "bot:set-commands": "bun run scripts/set-commands.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:web": "bun run --cwd web test",

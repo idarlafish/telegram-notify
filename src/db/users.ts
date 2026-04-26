@@ -16,3 +16,8 @@ export async function getUser(env: Env, id: number): Promise<User | null> {
   const [row] = await db(env).select().from(users).where(eq(users.id, id)).limit(1);
   return row ?? null;
 }
+
+// Cascades to notifications via the FK ON DELETE CASCADE constraint.
+export async function deleteUser(env: Env, id: number): Promise<void> {
+  await db(env).delete(users).where(eq(users.id, id));
+}
