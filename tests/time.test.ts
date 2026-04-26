@@ -33,6 +33,33 @@ describe("nextRecurring", () => {
   it("throws on malformed time", () => {
     expect(() => nextRecurring("25:99", "UTC", 127, fromMs)).toThrow();
   });
+
+  // DST regression: 2026-03-08 02:00 → 03:00 in America/New_York (spring
+  // forward). Daily 09:00 NY on the day before vs the DST day must both
+  // resolve to a real moment, with the offset shrinking by 1h post-transition.
+  it("daily mask handles spring-forward DST in America/New_York", () => {
+    // Sat 2026-03-07 13:00 UTC = 08:00 EST (UTC-5). Target: 09:00 daily.
+    // Same day 09:00 EST = 14:00 UTC.
+    const beforeDst = Date.UTC(2026, 2, 7, 13, 0, 0);
+    expect(nextRecurring("09:00", "America/New_York", 0b1111111, beforeDst))
+      .toBe(Date.UTC(2026, 2, 7, 14, 0, 0));
+
+    // Sun 2026-03-08 14:00 UTC = 10:00 EDT (UTC-4, after spring-forward).
+    // Next 09:00 NY → tomorrow Mon 09:00 EDT = 13:00 UTC.
+    const afterDst = Date.UTC(2026, 2, 8, 14, 0, 0);
+    expect(nextRecurring("09:00", "America/New_York", 0b1111111, afterDst))
+      .toBe(Date.UTC(2026, 2, 9, 13, 0, 0));
+  });
+
+  // DST regression: 2026-11-01 02:00 → 01:00 in America/New_York (fall back).
+  // Skipping forward / shifting clocks shouldn't fall back-drop a fire.
+  it("daily mask handles fall-back DST in America/New_York", () => {
+    // Sun 2026-11-01 12:00 UTC = 07:00 EST (after fall-back, UTC-5).
+    // Target: 09:00 daily. Same day 09:00 EST = 14:00 UTC.
+    const dstDay = Date.UTC(2026, 10, 1, 12, 0, 0);
+    expect(nextRecurring("09:00", "America/New_York", 0b1111111, dstDay))
+      .toBe(Date.UTC(2026, 10, 1, 14, 0, 0));
+  });
 });
 
 describe("oneTimeFireAt", () => {

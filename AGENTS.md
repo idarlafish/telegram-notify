@@ -9,7 +9,8 @@ Worker that serves both a Hono API and a React Mini App.
   `web/` = React 19 + Vite Mini App, served via Cloudflare Workers Static
   Assets from the same Worker.
 - **Stack.** TypeScript everywhere. Hono, drizzle-orm + drizzle-kit (D1),
-  valibot, vitest, grammY. Frontend: TanStack Router/Query/Form, valibot.
+  Workers KV (cron heartbeat), valibot, vitest, grammY. Frontend: TanStack
+  Router/Query/Form, valibot.
 - **Single bot, single env.** Production `@sleepy_notify_bot`. No staging
   Worker. Secrets in `.env` (gitignored) AND in `wrangler secret`; keep them
   in sync.
@@ -65,6 +66,8 @@ bun run db:migrate:remote    # apply to remote D1
 bun run bot:check            # dump every Bot API config (post-incident diagnostic)
 bun run bot:set-commands     # register slash commands shown in Telegram
 bun run set-webhook          # (re)register the bot webhook URL
+
+NEW_KEY=… OLD_KEY=… bun run scripts/rotate-message-key.ts   # see docs/encryption.md
 ```
 
 ## Commits

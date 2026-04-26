@@ -16,6 +16,12 @@ database_name = "telegram-notify-db"
 database_id = "d8757e49-34a9-4bb9-b574-5dd53c26a5b6"
 migrations_dir = "migrations"
 
+# KV for system state (cron heartbeat). Reads via env.CRON_STATE.get(),
+# writes via .put(). External monitor hits /health/cron.
+[[kv_namespaces]]
+binding = "CRON_STATE"
+id = "75110f95428d4bbebc453f2fae407883"
+
 # Bot token + webhook secret are stored as secrets, not in vars.
 # Set with: wrangler secret put BOT_TOKEN ; wrangler secret put WEBHOOK_SECRET
 # For local dev, copy .dev.vars.example to .dev.vars and fill in.

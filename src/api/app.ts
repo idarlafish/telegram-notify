@@ -18,6 +18,19 @@ export function createApp() {
   );
 
   app.get("/health", (c) => c.json({ status: "ok" }));
+
+  // Cron heartbeat — KV TTL means "no value" already implies "stale" (key
+  // expires after 10 min, longer than our 1-min cadence). Endpoint just
+  // surfaces presence + diagnostic age. Wire an external uptime monitor
+  // (cron-job.org, UptimeRobot, BetterStack, …) to alert on non-200.
+  app.get("/health/cron", async (c) => {
+    const raw = await c.env.CRON_STATE.get("last_cron_tick_at");
+    if (!raw) return c.json({ stale: true, last_tick_at: null }, 503);
+    const lastMs = Number(raw);
+    const ageMs = Date.now() - lastMs;
+    return c.json({ stale: false, last_tick_at: lastMs, age_ms: ageMs }, 200);
+  });
+
   app.post("/telegram-webhook", (c) => handleTelegramWebhook(c.req.raw, c.env));
   app.route("/api/notifications", notificationsRoutes);
 
