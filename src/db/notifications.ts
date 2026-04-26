@@ -3,7 +3,7 @@ import { db } from "./client";
 import { notifications, users, type Notification } from "./schema";
 import { daysToBitmask, bitmaskToDays, type WeekDay } from "./mappers";
 import { nextRecurring, oneTimeFireAt } from "../lib/time";
-import { encryptMessage, safeDecryptMessage } from "../lib/crypto";
+import { encryptMessage, decryptMessage } from "../lib/crypto";
 import type { Env } from "../env";
 
 export type { Notification, WeekDay };
@@ -24,7 +24,7 @@ const LOOKBACK_MS = 5 * 60_000;
 
 async function rowToApi(env: Env, n: Notification): Promise<NotificationRow> {
   const { weekdays, message, ...rest } = n;
-  const decryptedMessage = await safeDecryptMessage(env, message);
+  const decryptedMessage = await decryptMessage(env, message);
   const base = { ...rest, message: decryptedMessage };
   if (n.kind === "recurring") return { ...base, days: bitmaskToDays(weekdays!) };
   return base;
@@ -76,7 +76,7 @@ export async function updateNotification(
     .limit(1);
   if (!cur) return null;
 
-  const currentMessage = await safeDecryptMessage(env, cur.message);
+  const currentMessage = await decryptMessage(env, cur.message);
 
   const merged: NotificationInput = cur.kind === "recurring"
     ? {
@@ -139,7 +139,7 @@ export async function findDueNotifications(
       gt(notifications.next_fire_at, nowMs - LOOKBACK_MS),
     ));
   return Promise.all(
-    rows.map(async (r) => ({ ...r, message: await safeDecryptMessage(env, r.message) })),
+    rows.map(async (r) => ({ ...r, message: await decryptMessage(env, r.message) })),
   );
 }
 

@@ -53,12 +53,3 @@ export async function decryptMessage(env: Env, b64: string): Promise<string> {
   return dec.decode(pt);
 }
 
-// Migration helper: returns plaintext on legacy unencrypted rows, returns
-// decrypted text on properly encrypted rows. Remove once migration is verified.
-export async function safeDecryptMessage(env: Env, value: string): Promise<string> {
-  try {
-    return await decryptMessage(env, value);
-  } catch {
-    return value;
-  }
-}
