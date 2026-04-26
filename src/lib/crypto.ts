@@ -26,9 +26,11 @@ export function bytesToB64(bytes: Uint8Array): string {
   return btoa(s);
 }
 
-export async function importKeyFromBase64(b64: string): Promise<CryptoKey> {
+export async function importKeyFromBase64(b64: string, label = "key"): Promise<CryptoKey> {
   const raw = b64ToBytes(b64);
-  if (raw.length !== 32) throw new Error("AES key must be 32 bytes (base64-encoded)");
+  if (raw.length !== 32) {
+    throw new Error(`${label} must be 32 bytes (base64-encoded), got ${raw.length}`);
+  }
   return crypto.subtle.importKey(
     "raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"],
   );
@@ -60,13 +62,18 @@ let cachedCurrent: CryptoKey | null = null;
 let cachedOld: CryptoKey | null = null;
 
 async function getCurrentKey(env: Env): Promise<CryptoKey> {
-  if (!cachedCurrent) cachedCurrent = await importKeyFromBase64(env.MESSAGE_KEY);
+  if (!cachedCurrent) cachedCurrent = await importKeyFromBase64(env.MESSAGE_KEY, "MESSAGE_KEY");
   return cachedCurrent;
 }
 
 async function getOldKey(env: Env): Promise<CryptoKey | null> {
+  // The env.OLD_MESSAGE_KEY check MUST come before the cache check. After a
+  // rotation completes and `wrangler secret delete OLD_MESSAGE_KEY` runs, the
+  // isolate's `cachedOld` may still hold the old key value until eviction.
+  // Returning null here when env says "no old key" prevents a deleted secret
+  // from continuing to silently decrypt.
   if (!env.OLD_MESSAGE_KEY) return null;
-  if (!cachedOld) cachedOld = await importKeyFromBase64(env.OLD_MESSAGE_KEY);
+  if (!cachedOld) cachedOld = await importKeyFromBase64(env.OLD_MESSAGE_KEY, "OLD_MESSAGE_KEY");
   return cachedOld;
 }
 

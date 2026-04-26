@@ -27,6 +27,9 @@ export function createApp() {
     const raw = await c.env.CRON_STATE.get("last_cron_tick_at");
     if (!raw) return c.json({ stale: true, last_tick_at: null }, 503);
     const lastMs = Number(raw);
+    if (!Number.isFinite(lastMs)) {
+      return c.json({ stale: true, last_tick_at: null, reason: "non-numeric KV value" }, 503);
+    }
     const ageMs = Date.now() - lastMs;
     return c.json({ stale: false, last_tick_at: lastMs, age_ms: ageMs }, 200);
   });

@@ -67,7 +67,7 @@ bun run bot:check            # dump every Bot API config (post-incident diagnost
 bun run bot:set-commands     # register slash commands shown in Telegram
 bun run set-webhook          # (re)register the bot webhook URL
 
-NEW_KEY=… OLD_KEY=… bun run scripts/rotate-message-key.ts   # see docs/encryption.md
+bun run scripts/rotate-message-key.ts --dry-run   # NEW_KEY=... OLD_KEY=... env required; see docs/encryption.md
 ```
 
 ## Commits
