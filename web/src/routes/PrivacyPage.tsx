@@ -11,6 +11,16 @@ export default function PrivacyPage() {
       <h1>Privacy Policy</h1>
       <p className={css.meta}>Sleepy Notify — last updated 2026-04-26</p>
 
+      <p>
+        This policy describes how Sleepy Notify handles your data. It
+        supplements — and does not replace —{" "}
+        <a href="https://telegram.org/tos/mini-apps" target="_blank" rel="noopener noreferrer">
+          Telegram&apos;s Mini Apps Terms of Service
+        </a>
+        , which apply to every Mini App you use inside Telegram, including
+        this one.
+      </p>
+
       <h2>What we store</h2>
       <p>
         When you send <code>/start</code>, we store your Telegram user ID and chat
