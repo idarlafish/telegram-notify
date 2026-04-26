@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Reminders</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      // Preload notifications in parallel with React mount.
+      (function () {
+        try {
+          var tg = window.Telegram && window.Telegram.WebApp;
+          if (!tg || !tg.initData) return;
+          window.__notificationsPromise = fetch("/api/notifications", {
+            headers: { Authorization: "tma " + tg.initData }
+          }).then(function (r) { return r.ok ? r.json() : Promise.reject(r); });
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="/src/styles/theme.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
