@@ -34,3 +34,9 @@ export class PastDateError extends AppError {
     super("past_date", message, 400);
   }
 }
+
+export class ConflictError extends AppError {
+  constructor(message: string) {
+    super("conflict", message, 409);
+  }
+}

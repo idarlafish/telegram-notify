@@ -1,10 +1,13 @@
-import { and, eq, getTableColumns, gt, lte } from "drizzle-orm";
+import { and, eq, getTableColumns, gt, lte, sql } from "drizzle-orm";
 import { db } from "./client";
 import { notifications, users, type Notification } from "./schema";
 import { daysToBitmask, bitmaskToDays, type WeekDay } from "./mappers";
 import { nextRecurring, oneTimeFireAt } from "../lib/time";
 import { encryptMessage, decryptMessage } from "../lib/crypto";
+import { ConflictError } from "../lib/errors";
 import type { Env } from "../env";
+
+export const MAX_NOTIFICATIONS_PER_USER = 50;
 
 export type { Notification, WeekDay };
 
@@ -48,6 +51,13 @@ export async function listByUser(env: Env, userId: number): Promise<Notification
 export async function createNotification(
   env: Env, userId: number, input: NotificationInput,
 ): Promise<NotificationRow> {
+  const [c] = await db(env)
+    .select({ count: sql<number>`count(*)` })
+    .from(notifications)
+    .where(eq(notifications.user_id, userId));
+  if ((c?.count ?? 0) >= MAX_NOTIFICATIONS_PER_USER) {
+    throw new ConflictError(`reminder limit (${MAX_NOTIFICATIONS_PER_USER}) reached`);
+  }
   const id = crypto.randomUUID();
   const next = computeNextFire(input);
   const encryptedMessage = await encryptMessage(env, input.message);
