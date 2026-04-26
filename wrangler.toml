@@ -5,6 +5,10 @@ account_id = "95c5c6e1c01ea2d0c9fab69ee9e28462"
 
 routes = [{ pattern = "telegram-notify.la.fish", custom_domain = true }]
 
+# Forward exceptions + console.error to the tail Worker, which fans them out
+# to a Telegram debug chat. See ./tail-worker/ for the consumer.
+tail_consumers = [{ service = "telegram-notify-tail" }]
+
 # Cron Trigger: scan D1 for due notifications every minute.
 [triggers]
 crons = ["* * * * *"]
