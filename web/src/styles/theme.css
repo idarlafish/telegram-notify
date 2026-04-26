@@ -7,3 +7,8 @@ body {
   padding: 16px;
   padding-bottom: 80px;
 }
+.gradient { color: white; }
+.gradient[data-period="morning"] { background: linear-gradient(to right, #87ceeb, #fdfbd3); color: #1a2332; }
+.gradient[data-period="day"]     { background: linear-gradient(to right, #ff8c42, #fcd14d); }
+.gradient[data-period="evening"] { background: linear-gradient(to right, #d66ba0, #ffb68a); }
+.gradient[data-period="night"]   { background: linear-gradient(to right, #1a2332, #c2c5cc); }
