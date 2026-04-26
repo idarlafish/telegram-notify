@@ -4,7 +4,7 @@
 //
 // Returns the parsed user info on success, or null on failure.
 
-import type { Env } from "./types.ts";
+import type { Env } from "../env";
 
 export interface TelegramUser {
   id: number;

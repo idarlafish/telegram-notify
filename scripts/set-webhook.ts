@@ -1,6 +1,7 @@
 // Set the Telegram bot's webhook URL. Run once after first deploy:
 //   BOT_TOKEN=... WEBHOOK_URL=https://telegram-notify.la.fish/telegram-webhook \
 //   WEBHOOK_SECRET=... bun run scripts/set-webhook.ts
+export {};
 
 const token = process.env.BOT_TOKEN;
 const url = process.env.WEBHOOK_URL;
