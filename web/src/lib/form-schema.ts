@@ -6,14 +6,14 @@ const WeekDaySchema = v.picklist(["mon","tue","wed","thu","fri","sat","sun"]);
 export const ReminderFormSchema = v.pipe(
   v.object({
     time: v.pipe(v.string(), v.regex(/^([01]\d|2[0-3]):[0-5]\d$/, "use HH:MM")),
-    repeat: v.picklist(["daily","weekdays","weekends","custom","one_time"]),
-    customDays: v.optional(v.array(WeekDaySchema)),
+    repeat: v.picklist(["repeating","one_time"]),
+    days: v.optional(v.array(WeekDaySchema)),
     date: v.optional(v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/))),
     message: v.pipe(v.string(), v.trim(), v.minLength(1, "required"), v.maxLength(200, "max 200 chars")),
     timezone: v.string(),
   }),
-  v.check((d) => d.repeat !== "custom"   || (d.customDays?.length ?? 0) > 0, "pick at least one day"),
-  v.check((d) => d.repeat !== "one_time" || !!d.date,                        "pick a date"),
+  v.check((d) => d.repeat !== "repeating" || (d.days?.length ?? 0) > 0, "pick at least one day"),
+  v.check((d) => d.repeat !== "one_time"  || !!d.date,                  "pick a date"),
 );
 
 export type ReminderForm = v.InferOutput<typeof ReminderFormSchema>;

@@ -5,25 +5,24 @@ import type { Notification } from "../src/api/types";
 describe("formToApiBody", () => {
   const base = { time: "09:00", message: "x", timezone: "UTC" };
 
-  it("daily → recurring with all days", () => {
-    expect(formToApiBody({ ...base, repeat: "daily" })).toEqual({
-      ...base, kind: "recurring", days: ["mon","tue","wed","thu","fri","sat","sun"],
-    });
+  it("repeating uses days as-is", () => {
+    expect(formToApiBody({
+      ...base, repeat: "repeating", days: ["tue","thu"],
+    })).toEqual({ ...base, kind: "recurring", days: ["tue","thu"] });
   });
-  it("weekdays preset", () => {
-    expect(formToApiBody({ ...base, repeat: "weekdays" })).toEqual({
-      ...base, kind: "recurring", days: ["mon","tue","wed","thu","fri"],
-    });
-  });
-  it("custom uses customDays", () => {
-    expect(formToApiBody({ ...base, repeat: "custom", customDays: ["tue","thu"] })).toEqual({
-      ...base, kind: "recurring", days: ["tue","thu"],
+  it("repeating with all days", () => {
+    expect(formToApiBody({
+      ...base, repeat: "repeating",
+      days: ["mon","tue","wed","thu","fri","sat","sun"],
+    })).toEqual({
+      ...base, kind: "recurring",
+      days: ["mon","tue","wed","thu","fri","sat","sun"],
     });
   });
   it("one_time uses date", () => {
-    expect(formToApiBody({ ...base, repeat: "one_time", date: "2026-12-31" })).toEqual({
-      ...base, kind: "one_time", date: "2026-12-31",
-    });
+    expect(formToApiBody({
+      ...base, repeat: "one_time", date: "2026-12-31",
+    })).toEqual({ ...base, kind: "one_time", date: "2026-12-31" });
   });
 });
 
@@ -33,26 +32,22 @@ describe("apiRowToForm", () => {
     next_fire_at: 0, last_sent_at: null, created_at: 0,
   };
 
-  it("detects daily preset", () => {
-    const row: Notification = {
-      ...base, kind: "recurring",
-      days: ["mon","tue","wed","thu","fri","sat","sun"],
-    };
-    expect(apiRowToForm(row).repeat).toBe("daily");
-  });
-  it("detects weekdays preset", () => {
-    const row: Notification = {
-      ...base, kind: "recurring", days: ["mon","tue","wed","thu","fri"],
-    };
-    expect(apiRowToForm(row).repeat).toBe("weekdays");
-  });
-  it("falls back to custom for non-preset", () => {
+  it("recurring → repeating with days", () => {
     const row: Notification = {
       ...base, kind: "recurring", days: ["mon","wed","fri"],
     };
     const f = apiRowToForm(row);
-    expect(f.repeat).toBe("custom");
-    expect(f.customDays).toEqual(["mon","wed","fri"]);
+    expect(f.repeat).toBe("repeating");
+    expect(f.days).toEqual(["mon","wed","fri"]);
+  });
+  it("recurring with all 7 days", () => {
+    const row: Notification = {
+      ...base, kind: "recurring",
+      days: ["mon","tue","wed","thu","fri","sat","sun"],
+    };
+    const f = apiRowToForm(row);
+    expect(f.repeat).toBe("repeating");
+    expect(f.days).toHaveLength(7);
   });
   it("one_time derives date from next_fire_at", () => {
     const row: Notification = {

@@ -5,7 +5,7 @@ import {
   useCreateNotification, useDeleteNotification, useNotifications, useUpdateNotification,
 } from "../api/hooks";
 import { ReminderFormSchema, type ReminderForm } from "../lib/form-schema";
-import { formToApiBody, apiRowToForm } from "../api/map";
+import { formToApiBody, apiRowToForm, ALL_DAYS } from "../api/map";
 import { useBackButton, useMainButton, getTimezone, haptic } from "../lib/telegram";
 import { TimeField } from "../components/TimeField";
 import { MessageField } from "../components/MessageField";
@@ -15,11 +15,9 @@ import { DayPicker } from "../components/DayPicker";
 import type { WeekDay } from "../api/types";
 
 const DEFAULTS: ReminderForm = {
-  time: "09:00", repeat: "daily", message: "", timezone: getTimezone(),
+  time: "09:00", repeat: "repeating", days: [...ALL_DAYS], message: "", timezone: getTimezone(),
 };
 
-// TanStack Form v1 surfaces errors as the standard-schema issue objects
-// (`{ message, path }`), not bare strings. Render the message field directly.
 function fieldError(errors: unknown[] | undefined): string | undefined {
   const e = errors?.[0];
   if (!e) return undefined;
@@ -60,7 +58,6 @@ export default function FormPage() {
     },
   });
 
-  // Reset when the edit row finishes loading.
   useEffect(() => {
     if (isEdit && initial) form.reset(apiRowToForm(initial));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,15 +84,18 @@ export default function FormPage() {
           </div>
           <RepeatSelector value={f.state.value} onChange={(v) => {
             f.handleChange(v);
-            if (v !== "custom") form.setFieldValue("customDays", undefined);
-            if (v === "one_time") {
+            if (v === "repeating") {
+              if (!form.getFieldValue("days")?.length) {
+                form.setFieldValue("days", [...ALL_DAYS]);
+              }
+              form.setFieldValue("date", undefined);
+            } else {
+              form.setFieldValue("days", undefined);
               if (!form.getFieldValue("date")) {
                 form.setFieldValue("date", new Intl.DateTimeFormat("en-CA", {
                   year: "numeric", month: "2-digit", day: "2-digit",
                 }).format(new Date()));
               }
-            } else {
-              form.setFieldValue("date", undefined);
             }
           }} />
         </>
@@ -104,8 +104,8 @@ export default function FormPage() {
       <form.Subscribe selector={(s) => s.values.repeat}>
         {(repeat) => (
           <>
-            {repeat === "custom" && (
-              <form.Field name="customDays">{(f) => (
+            {repeat === "repeating" && (
+              <form.Field name="days">{(f) => (
                 <>
                   <DayPicker value={(f.state.value ?? []) as WeekDay[]}
                     onChange={(v) => f.handleChange(v)} />

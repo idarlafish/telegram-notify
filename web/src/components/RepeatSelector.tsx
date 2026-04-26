@@ -2,11 +2,8 @@ import css from "./RepeatSelector.module.css";
 import type { Repeat } from "../lib/form-schema";
 
 const OPTIONS: { value: Repeat; label: string }[] = [
-  { value: "daily",    label: "Daily" },
-  { value: "weekdays", label: "Weekdays" },
-  { value: "weekends", label: "Weekends" },
-  { value: "custom",   label: "Custom" },
-  { value: "one_time", label: "One-time" },
+  { value: "repeating", label: "Repeating" },
+  { value: "one_time",  label: "One-time" },
 ];
 
 export function RepeatSelector(props: { value: Repeat; onChange: (v: Repeat) => void }) {
