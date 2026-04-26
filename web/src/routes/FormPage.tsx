@@ -18,6 +18,18 @@ const DEFAULTS: ReminderForm = {
   time: "09:00", repeat: "daily", message: "", timezone: getTimezone(),
 };
 
+// TanStack Form v1 surfaces errors as the standard-schema issue objects
+// (`{ message, path }`), not bare strings. Render the message field directly.
+function fieldError(errors: unknown[] | undefined): string | undefined {
+  const e = errors?.[0];
+  if (!e) return undefined;
+  if (typeof e === "string") return e;
+  if (typeof e === "object" && e && "message" in e) {
+    return String((e as { message: unknown }).message);
+  }
+  return String(e);
+}
+
 export default function FormPage() {
   const navigate = useNavigate();
   const editMatch = useMatch({ from: "/edit/$id", shouldThrow: false });
@@ -65,7 +77,7 @@ export default function FormPage() {
 
       <form.Field name="time">{(f) => (
         <TimeField value={f.state.value} onChange={f.handleChange}
-          error={f.state.meta.errors?.[0] as string | undefined} />
+          error={fieldError(f.state.meta.errors)} />
       )}</form.Field>
 
       <form.Field name="repeat">{(f) => (
@@ -89,9 +101,9 @@ export default function FormPage() {
                 <>
                   <DayPicker value={(f.state.value ?? []) as WeekDay[]}
                     onChange={(v) => f.handleChange(v)} />
-                  {f.state.meta.errors?.[0] && (
+                  {fieldError(f.state.meta.errors) && (
                     <div style={{ color: "#d73a3a", fontSize: 13, marginTop: -8, marginBottom: 12 }}>
-                      {String(f.state.meta.errors[0])}
+                      {fieldError(f.state.meta.errors)}
                     </div>
                   )}
                 </>
@@ -100,7 +112,7 @@ export default function FormPage() {
             {repeat === "one_time" && (
               <form.Field name="date">{(f) => (
                 <DateField value={f.state.value ?? ""} onChange={f.handleChange}
-                  error={f.state.meta.errors?.[0] as string | undefined} />
+                  error={fieldError(f.state.meta.errors)} />
               )}</form.Field>
             )}
           </>
@@ -109,7 +121,7 @@ export default function FormPage() {
 
       <form.Field name="message">{(f) => (
         <MessageField value={f.state.value} onChange={f.handleChange}
-          error={f.state.meta.errors?.[0] as string | undefined} />
+          error={fieldError(f.state.meta.errors)} />
       )}</form.Field>
 
       {isEdit && (
