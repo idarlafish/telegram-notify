@@ -3,14 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2026-04-01"
 account_id = "95c5c6e1c01ea2d0c9fab69ee9e28462"
 
-# Forwards exceptions + console.error from the main Worker to a Telegram debug
-# chat. Wired up via `tail_consumers` in the main wrangler.toml. Lives as a
-# separate Worker so a crash in the main one can't take the alerting path
-# down with it (the dependency points one way: main -> tail).
+# Tail consumer for the main Worker; see ../wrangler.toml tail_consumers.
 
 [vars]
 DEBUG_CHAT_ID = "671615920"
 SOURCE_NAME = "telegram-notify"
 
-# BOT_TOKEN set out-of-band:
-#   echo "$BOT_TOKEN" | bunx wrangler secret put BOT_TOKEN --name telegram-notify-tail
+# BOT_TOKEN secret: pipe ALERT_BOT_TOKEN from the tools repo's .env via
+# `bunx wrangler secret put BOT_TOKEN --name telegram-notify-tail`.

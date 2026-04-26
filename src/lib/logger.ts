@@ -7,13 +7,7 @@ function emit(level: LogLevel, message: string, fields?: Fields): void {
   console.log(JSON.stringify({ level, message, ts: Date.now(), ...fields }));
 }
 
-// Maps a `Fields` record to the Analytics Engine triplet:
-//   - numeric fields  → `doubles`
-//   - string  fields  → `blobs` (so they're queryable as labels)
-//   - a field named `id`, if string, doubles as the analytics `index`
-//     (used for sampled queries on high-cardinality dimensions).
-// Everything else (booleans, nested objects) is omitted from the analytics
-// payload — those still appear in the log line for ad-hoc debugging.
+// Convention: numbers → doubles, strings → blobs, `id` → index.
 function toDataPoint(name: string, fields: Fields): AnalyticsEngineDataPoint {
   const blobs: string[] = [name];
   const doubles: number[] = [];
@@ -32,10 +26,7 @@ export const logger = {
   info: (msg: string, fields?: Fields) => emit("info", msg, fields),
   warn: (msg: string, fields?: Fields) => emit("warn", msg, fields),
   error: (msg: string, fields?: Fields) => emit("error", msg, fields),
-  // Structured event: written to both the log stream (for `wrangler tail` and
-  // ad-hoc dashboard queries) AND the Analytics Engine dataset (for queryable
-  // time-series via the GraphQL API). Single call site keeps the dimensions
-  // in sync between the two sinks.
+  // Writes to both the log stream and the Analytics Engine dataset.
   event(env: Env, name: string, fields: Fields = {}): void {
     emit("info", name, fields);
     env.ANALYTICS.writeDataPoint(toDataPoint(name, fields));

@@ -1,7 +1,4 @@
-// Tail consumer for the main Worker. Cloudflare invokes `tail` once per batch
-// of trace events (Workers groups them automatically). Forwards anything
-// alert-worthy to a Telegram debug chat via the Bot API directly — no grammY
-// dependency in this Worker, keeping the failure surface minimal.
+// Forwards exceptions / error logs to a Telegram debug chat via the Bot API.
 
 interface Env {
   BOT_TOKEN: string;
@@ -30,8 +27,6 @@ export default {
         if (log.level !== "error") continue;
         lines.push(`❌ ${formatLogMessage(log.message)}`);
       }
-      // Cloudflare-side outcomes that aren't "ok" deserve a flag even when
-      // the script didn't throw an exception itself (e.g. CPU exhaustion).
       if (e.outcome && e.outcome !== "ok") {
         lines.push(`⚠️  outcome=${e.outcome}`);
       }
@@ -70,8 +65,7 @@ async function sendTelegram(env: Env, text: string): Promise<void> {
     }),
   });
   if (!res.ok) {
-    // Don't throw — a tail-worker exception would itself be observable only
-    // via the *next* tail-worker invocation, and we don't want that recursion.
+    // Don't throw: tail exceptions would feed back into the tail handler.
     console.error("tail-worker send failed", {
       status: res.status,
       body: await res.text(),

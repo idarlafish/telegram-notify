@@ -5,8 +5,7 @@ account_id = "95c5c6e1c01ea2d0c9fab69ee9e28462"
 
 routes = [{ pattern = "telegram-notify.la.fish", custom_domain = true }]
 
-# Forward exceptions + console.error to the tail Worker, which fans them out
-# to a Telegram debug chat. See ./tail-worker/ for the consumer.
+# See ./tail-worker/.
 tail_consumers = [{ service = "telegram-notify-tail" }]
 
 # Cron Trigger: scan D1 for due notifications every minute.
@@ -26,9 +25,6 @@ migrations_dir = "migrations"
 binding = "CRON_STATE"
 id = "75110f95428d4bbebc453f2fae407883"
 
-# Analytics Engine: structured per-event telemetry (cron tick, send result,
-# postFire outcome). Free tier covers our volume by orders of magnitude.
-# Query via the Cloudflare GraphQL Analytics API or the Grafana plugin.
 [[analytics_engine_datasets]]
 binding = "ANALYTICS"
 dataset = "telegram_notify_events"
