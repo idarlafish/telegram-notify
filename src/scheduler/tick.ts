@@ -29,15 +29,23 @@ async function fireDueNotifications(env: Env, nowMs: number): Promise<void> {
 
   const bot = createBot(env);
   for (const n of due) {
+    // At-most-once: advance state BEFORE the Telegram call. If the isolate
+    // dies after Telegram accepts but before recordSent/deleteById, the next
+    // tick would otherwise resend — duplicate reminders are worse than a
+    // missed one. Transient Telegram failures are now handled by the
+    // grammY auto-retry transformer (see telegram/bot.ts), not by lookback.
+    await postFire(env, n, nowMs);
     try {
       await bot.api.sendMessage(n.chat_id, n.message, {
         reply_markup: {
           inline_keyboard: [[{ text: "✅", callback_data: `done:${n.id}` }]],
         },
       });
-      await postFire(env, n, nowMs);
     } catch (err) {
-      logger.error("notification send failed", { id: n.id, error: String(err) });
+      logger.error("notification send failed (state already advanced)", {
+        id: n.id,
+        error: String(err),
+      });
     }
   }
 }
