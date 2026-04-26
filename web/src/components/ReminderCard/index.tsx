@@ -1,11 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
-import type { Notification } from "../api/types";
-import { formatLocalTime, daysSummary, countdownText } from "../lib/time";
-import css from "./ReminderCard.module.css";
-import sunriseUrl from "../assets/sunrise.svg";
-import sunUrl from "../assets/sun.svg";
-import sunsetUrl from "../assets/sunset.svg";
-import moonUrl from "../assets/moon.svg";
+import type { Notification } from "../../api/types";
+import { formatLocalTime, daysSummary, countdownText } from "../../lib/time";
+import css from "./styles.module.css";
+import sunriseUrl from "../../assets/sunrise.svg";
+import sunUrl from "../../assets/sun.svg";
+import sunsetUrl from "../../assets/sunset.svg";
+import moonUrl from "../../assets/moon.svg";
 
 type Period = "morning" | "day" | "evening" | "night";
 

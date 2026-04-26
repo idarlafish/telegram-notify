@@ -1,4 +1,4 @@
-import css from "./fields.module.css";
+import css from "../../styles/fields.module.css";
 export function TimeField(props: { value: string; onChange: (v: string) => void; error?: string }) {
   return (
     <div className={css.field}>

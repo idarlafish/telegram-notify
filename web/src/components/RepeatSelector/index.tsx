@@ -1,5 +1,5 @@
-import css from "./RepeatSelector.module.css";
-import type { Repeat } from "../lib/form-schema";
+import css from "./styles.module.css";
+import type { Repeat } from "../../lib/form-schema";
 
 const OPTIONS: { value: Repeat; label: string }[] = [
   { value: "repeating", label: "Repeating" },

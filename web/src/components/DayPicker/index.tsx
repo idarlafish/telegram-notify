@@ -1,5 +1,5 @@
-import css from "./DayPicker.module.css";
-import type { WeekDay } from "../api/types";
+import css from "./styles.module.css";
+import type { WeekDay } from "../../api/types";
 
 const DAYS: WeekDay[] = ["mon","tue","wed","thu","fri","sat","sun"];
 const ALL: WeekDay[] = ["mon","tue","wed","thu","fri","sat","sun"];

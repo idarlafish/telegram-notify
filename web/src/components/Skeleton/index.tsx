@@ -1,4 +1,4 @@
-import css from "./ReminderCard.module.css";
+import css from "../ReminderCard/styles.module.css";
 export function Skeleton() {
   return (
     <div className={css.card} style={{ background: "rgba(0,0,0,0.06)", color: "transparent" }}>
