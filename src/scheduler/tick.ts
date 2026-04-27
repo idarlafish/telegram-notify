@@ -8,8 +8,13 @@ import {
 import { logger } from "../lib/logger";
 import type { Env } from "../env";
 
-// Must exceed external probe alert window — see tools repo monitoring config.
-const HEARTBEAT_TTL_SECONDS = 10 * 60;
+// Heartbeat is throttled to one KV write per HEARTBEAT_INTERVAL_MINUTES to
+// stay under the KV free-tier write quota (1k/day). TTL must comfortably
+// exceed the interval so a single missed write doesn't trip the alert; it
+// must also exceed the external probe alert window (see tools repo monitoring
+// config) so the value is always present during normal operation.
+const HEARTBEAT_INTERVAL_MINUTES = 5;
+const HEARTBEAT_TTL_SECONDS = 15 * 60;
 
 // Uncaught read failures skip the heartbeat — that's the D1-down alarm.
 export async function runCronTick(env: Env, nowMs: number = Date.now()): Promise<void> {
@@ -75,6 +80,10 @@ async function postFire(env: Env, n: DueNotification, nowMs: number): Promise<vo
 }
 
 async function heartbeat(env: Env, nowMs: number): Promise<void> {
+  // Write only on minute boundaries divisible by HEARTBEAT_INTERVAL_MINUTES.
+  // Deterministic from nowMs alone — no extra KV read needed.
+  const minutesSinceEpoch = Math.floor(nowMs / 60_000);
+  if (minutesSinceEpoch % HEARTBEAT_INTERVAL_MINUTES !== 0) return;
   await env.CRON_STATE.put("last_cron_tick_at", String(nowMs), {
     expirationTtl: HEARTBEAT_TTL_SECONDS,
   });

@@ -4,7 +4,7 @@ import type { Env } from "../env";
 export const healthRoutes = new Hono<{ Bindings: Env }>()
   .get("/", (c) => c.json({ status: "ok" }))
   // Cron heartbeat. KV TTL means "no value" already implies "stale" (key
-  // expires after 10 min, longer than our 1-min cadence). Endpoint surfaces
+  // expires after 15 min, 3× the 5-min write cadence). Endpoint surfaces
   // presence + diagnostic age. Wire an external uptime monitor (cron-job.org,
   // UptimeRobot, BetterStack, …) to alert on non-200.
   .get("/cron", async (c) => {
