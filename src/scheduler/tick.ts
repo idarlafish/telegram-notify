@@ -8,12 +8,13 @@ import {
 import { logger } from "../lib/logger";
 import type { Env } from "../env";
 
-// Heartbeat is throttled to one KV write per HEARTBEAT_INTERVAL_MINUTES to
-// stay under the KV free-tier write quota (1k/day). TTL must comfortably
-// exceed the interval so a single missed write doesn't trip the alert; it
-// must also exceed the external probe alert window (see tools repo monitoring
-// config) so the value is always present during normal operation.
-const HEARTBEAT_INTERVAL_MINUTES = 5;
+// KV heartbeat is throttled by reading the previous timestamp first and
+// skipping the write if the gap is < HEARTBEAT_INTERVAL_MS. Self-healing: a
+// missed write is retried on the very next tick. TTL is ~3× the interval so a
+// transient KV outage doesn't trip the alert, and must exceed the external
+// probe alert window (see tools repo monitoring config) so the value is
+// always present during normal operation.
+const HEARTBEAT_INTERVAL_MS = 5 * 60_000;
 const HEARTBEAT_TTL_SECONDS = 15 * 60;
 
 // Uncaught read failures skip the heartbeat — that's the D1-down alarm.
@@ -80,10 +81,12 @@ async function postFire(env: Env, n: DueNotification, nowMs: number): Promise<vo
 }
 
 async function heartbeat(env: Env, nowMs: number): Promise<void> {
-  // Write only on minute boundaries divisible by HEARTBEAT_INTERVAL_MINUTES.
-  // Deterministic from nowMs alone — no extra KV read needed.
-  const minutesSinceEpoch = Math.floor(nowMs / 60_000);
-  if (minutesSinceEpoch % HEARTBEAT_INTERVAL_MINUTES !== 0) return;
+  // Read first; skip the write if KV already holds a recent value. Strict
+  // `<` against the interval ensures the steady-state write cadence cannot
+  // be tighter than HEARTBEAT_INTERVAL_MS — caps writes at 288/day.
+  const lastRaw = await env.CRON_STATE.get("last_cron_tick_at");
+  const lastMs = lastRaw === null ? 0 : Number(lastRaw);
+  if (Number.isFinite(lastMs) && nowMs - lastMs < HEARTBEAT_INTERVAL_MS) return;
   await env.CRON_STATE.put("last_cron_tick_at", String(nowMs), {
     expirationTtl: HEARTBEAT_TTL_SECONDS,
   });
