@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { cors } from "hono/cors";
 import { errorHandler } from "./middleware/error";
 import { notificationsRoutes } from "./notifications";
 import { healthRoutes } from "./health";
@@ -8,15 +7,6 @@ import type { Env } from "../env";
 
 export function createApp() {
   const app = new Hono<{ Bindings: Env }>();
-
-  app.use(
-    "*",
-    cors({
-      origin: "*",
-      allowHeaders: ["authorization", "content-type"],
-      allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    }),
-  );
 
   app.route("/health", healthRoutes);
   app.post("/telegram-webhook", (c) => handleTelegramWebhook(c.req.raw, c.env));
