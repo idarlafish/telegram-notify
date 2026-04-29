@@ -3,8 +3,12 @@ import type { Env } from "../env";
 type LogLevel = "info" | "warn" | "error";
 type Fields = Record<string, unknown>;
 
+// Route by level so the Cloudflare tail event surfaces `log.level` correctly:
+// `console.error` → tail `level === "error"`, which the tail-worker filters on.
+// Routing everything through console.log makes handled errors invisible there.
 function emit(level: LogLevel, message: string, fields?: Fields): void {
-  console.log(JSON.stringify({ level, message, ts: Date.now(), ...fields }));
+  const fn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+  fn(JSON.stringify({ level, message, ts: Date.now(), ...fields }));
 }
 
 // Convention: numbers → doubles, strings → blobs, `id` → index.
