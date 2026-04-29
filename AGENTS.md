@@ -65,8 +65,6 @@ bun run db:migrate:local     # apply migrations to local D1
 bun run db:migrate:remote    # apply to remote D1
 bun run bot:set-commands     # register slash commands shown in Telegram
 bun run set-webhook          # (re)register the bot webhook URL
-
-bun run scripts/rotate-message-key.ts --dry-run   # NEW_KEY=... OLD_KEY=... env required; see docs/encryption.md
 ```
 
 ## Commits
