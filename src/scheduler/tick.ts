@@ -56,11 +56,16 @@ async function fireOne(
       logger.error("notification send failed (state already advanced)", {
         id: n.id,
         error: String(err),
+        cause: err instanceof Error && err.cause !== undefined ? String(err.cause) : undefined,
       });
     }
   } catch (err) {
     outcome = "db_error";
-    logger.error("postFire failed", { id: n.id, error: String(err) });
+    logger.error("postFire failed", {
+      id: n.id,
+      error: String(err),
+      cause: err instanceof Error && err.cause !== undefined ? String(err.cause) : undefined,
+    });
   }
   logger.event(env, "fire_one", {
     id: n.id,
@@ -72,11 +77,25 @@ async function fireOne(
 
 async function postFire(env: Env, n: DueNotification, nowMs: number): Promise<void> {
   if (n.kind === "one_time") {
-    await deleteById(env, n.id);
+    await withRetry(() => deleteById(env, n.id));
     logger.info("one-time fired and deleted", { id: n.id, chat_id: n.chat_id });
   } else {
-    await recordSent(env, n, nowMs);
+    await withRetry(() => recordSent(env, n, nowMs));
     logger.info("recurring fired", { id: n.id, chat_id: n.chat_id });
+  }
+}
+
+async function withRetry<T>(op: () => Promise<T>): Promise<T> {
+  try {
+    return await op();
+  } catch (first) {
+    await new Promise((r) => setTimeout(r, 250));
+    try {
+      return await op();
+    } catch (second) {
+      if (second instanceof Error) (second as Error).cause = first;
+      throw second;
+    }
   }
 }
 
