@@ -2,6 +2,8 @@ import { createApp } from "./api/app";
 import { runCronTick } from "./scheduler/tick";
 import type { Env } from "./env";
 
+export { UserSchedulerDO } from "./scheduler/user-do";
+
 const app = createApp();
 
 export default {
