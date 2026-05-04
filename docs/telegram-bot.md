@@ -93,7 +93,7 @@ The `/start` and `/stop` menu is registered by the Worker itself via
 `@grammyjs/commands`. Each cold isolate calls `setMyCommands` once on the
 first webhook delivery (`src/telegram/commands/index.ts`), then skips it for
 the rest of that isolate's lifetime. Telegram is idempotent on the call, so
-this is safe — but it does mean the *only* place command names + descriptions
+this is safe — but it does mean the _only_ place command names + descriptions
 are defined is in `start.ts` and `stop.ts` (the second argument to
 `commands.command(name, description, handler)`).
 

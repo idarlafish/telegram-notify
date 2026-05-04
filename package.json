@@ -23,7 +23,17 @@
     "typecheck": "tsc --noEmit && bun run --cwd web typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint:staged:fix": "lint-staged",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.ts": [
+      "eslint --fix"
+    ],
+    "*.{ts,tsx,js,jsx,json,md,yml,yaml,css,html}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.15.2",
@@ -32,6 +42,8 @@
     "@typescript-eslint/parser": "^8.59.1",
     "drizzle-kit": "^0.31.10",
     "eslint": "^10.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
     "vitest": "^4.1.5",
     "wrangler": "^4.71.0"
