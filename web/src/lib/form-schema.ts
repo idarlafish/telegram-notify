@@ -3,6 +3,8 @@ import type { WeekDay } from "../api/types";
 
 const WeekDaySchema = v.picklist(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
 
+const ONE_TIME_FUTURE_ERROR = "pick a future date/time";
+
 export const ReminderFormSchema = v.pipe(
   v.object({
     time: v.pipe(v.string(), v.regex(/^([01]\d|2[0-3]):[0-5]\d$/, "use HH:MM")),
@@ -19,6 +21,15 @@ export const ReminderFormSchema = v.pipe(
   }),
   v.check((d) => d.repeat !== "repeating" || (d.days?.length ?? 0) > 0, "pick at least one day"),
   v.check((d) => d.repeat !== "one_time" || !!d.date, "pick a date"),
+  v.forward(
+    v.check((d) => {
+      if (d.repeat !== "one_time" || !d.date) return true;
+      const oneTimeAt = new Date(`${d.date}T${d.time}:00`);
+      if (Number.isNaN(oneTimeAt.getTime())) return true;
+      return oneTimeAt.getTime() > Date.now();
+    }, ONE_TIME_FUTURE_ERROR),
+    ["date"],
+  ),
 );
 
 export type ReminderForm = v.InferOutput<typeof ReminderFormSchema>;
