@@ -9,7 +9,7 @@ import {
 } from "../api/hooks";
 import { ReminderFormSchema, type ReminderForm } from "./form-schema";
 import { ALL_DAYS, apiRowToForm, formToApiBody } from "../api/map";
-import { getTimezone, haptic } from "./telegram";
+import { getTimezone, haptic, showAlert, showConfirm } from "./telegram";
 
 const DEFAULTS: ReminderForm = {
   time: "09:00",
@@ -44,7 +44,7 @@ export function useReminderForm(editId: string | undefined) {
         navigate({ to: "/" });
       } catch (e) {
         haptic("error");
-        alert(e instanceof Error ? e.message : "Could not save — please retry");
+        await showAlert(e instanceof Error ? e.message : "Could not save — please retry");
       }
     },
   });
@@ -55,9 +55,9 @@ export function useReminderForm(editId: string | undefined) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial, isEdit]);
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!editId) return;
-    if (!confirm("Delete this reminder?")) return;
+    if (!(await showConfirm("Delete this reminder?"))) return;
     remove.mutate(editId, { onSuccess: () => navigate({ to: "/" }) });
   }
 

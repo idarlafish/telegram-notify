@@ -43,6 +43,27 @@ export function haptic(kind: "success" | "warning" | "error") {
   tg?.HapticFeedback?.notificationOccurred(kind);
 }
 
+export function showAlert(message: string): Promise<void> {
+  if (!tg) {
+    window.alert(message);
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    tg.showAlert(message, () => resolve());
+  });
+}
+
+export function showConfirm(message: string): Promise<boolean> {
+  if (!tg) {
+    return Promise.resolve(window.confirm(message));
+  }
+
+  return new Promise((resolve) => {
+    tg.showConfirm(message, (ok) => resolve(ok));
+  });
+}
+
 export function getInitData(): string {
   return tg?.initData ?? "";
 }
