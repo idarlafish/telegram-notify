@@ -4,9 +4,23 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Target environment (manual deploy only)"
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod
+        default: staging
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.inputs.env || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  ci:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -17,3 +31,25 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun run test:web
+
+  deploy:
+    needs: verify
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          DEPLOY_ENV: ${{ inputs.env }}
+        run: |
+          if [ "$DEPLOY_ENV" = "staging" ]; then
+            bun run deploy:staging
+          else
+            bun run deploy
+          fi
