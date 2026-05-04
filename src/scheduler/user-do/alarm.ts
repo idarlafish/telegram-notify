@@ -5,7 +5,7 @@ import { decryptMessage } from "../../lib/crypto";
 import { nextRecurring } from "./time";
 import { refreshAlarm } from "./refresh-alarm";
 import { getProfile } from "./profile";
-import { createBot } from "../../telegram/bot";
+import { is429, parseRetryAfter, sendNotification } from "./delivery";
 import { logger } from "../../lib/logger";
 import type { Env } from "../../env";
 
@@ -36,15 +36,17 @@ export async function fireAndAdvance(ctx: AlarmCtx): Promise<void> {
     return;
   }
 
-  const bot = createBot(ctx.env);
   let retryAfterMs: number | null = null;
 
   await Promise.all(
     due.map(async (n) => {
       try {
-        await bot.api.sendMessage(profile.chat_id, await decryptMessage(ctx.env, n.message), {
-          reply_markup: { inline_keyboard: [[{ text: "✅", callback_data: `done:${n.id}` }]] },
-        });
+        await sendNotification(
+          ctx.env,
+          profile.chat_id,
+          await decryptMessage(ctx.env, n.message),
+          n.id,
+        );
         if (n.kind === "one_time") {
           await ctx.db.delete(notifications).where(eq(notifications.id, n.id));
         } else {
@@ -78,20 +80,4 @@ export async function fireAndAdvance(ctx: AlarmCtx): Promise<void> {
   } else {
     await refreshAlarm(ctx.db, ctx.storage);
   }
-}
-
-function is429(err: unknown): boolean {
-  if (!err || typeof err !== "object") return false;
-  const e = err as Record<string, unknown>;
-  return (
-    e.error_code === 429 ||
-    (typeof e.message === "string" && (e.message as string).includes("Too Many Requests"))
-  );
-}
-
-function parseRetryAfter(err: unknown): number {
-  if (!err || typeof err !== "object") return 30;
-  const e = err as Record<string, unknown>;
-  const params = e.parameters as { retry_after?: number } | undefined;
-  return params?.retry_after ?? 30;
 }
