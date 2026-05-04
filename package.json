@@ -3,6 +3,7 @@
   "module": "src/index.ts",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "workspaces": ["web"],
   "scripts": {
     "dev": "wrangler dev",
