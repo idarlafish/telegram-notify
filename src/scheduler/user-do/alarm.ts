@@ -82,8 +82,7 @@ export async function fireAndAdvance(ctx: AlarmCtx): Promise<void> {
   );
 
   const maxRetryAfterMs = outcomes.reduce<number>(
-    (max, outcome) =>
-      outcome.kind === "rate_limited" ? Math.max(max, outcome.retryAfterMs) : max,
+    (max, outcome) => (outcome.kind === "rate_limited" ? Math.max(max, outcome.retryAfterMs) : max),
     0,
   );
   const hasError = outcomes.some((outcome) => outcome.kind === "error");
