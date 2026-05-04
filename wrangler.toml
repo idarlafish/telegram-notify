@@ -1,6 +1,7 @@
 name = "telegram-notify"
 main = "src/index.ts"
 compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
 account_id = "95c5c6e1c01ea2d0c9fab69ee9e28462"
 
 routes = [{ pattern = "telegram-notify.la.fish", custom_domain = true }]
@@ -39,3 +40,16 @@ dataset = "telegram_notify_events"
 directory = "./web/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.sql"]
+fallthrough = true
+
+[[durable_objects.bindings]]
+name = "USER_SCHEDULER"
+class_name = "UserSchedulerDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["UserSchedulerDO"]
