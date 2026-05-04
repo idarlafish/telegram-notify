@@ -9,7 +9,7 @@ export default function PrivacyPage() {
   return (
     <article className={css.page}>
       <h1>Privacy Policy</h1>
-      <p className={css.meta}>Sleepy Notify — last updated 2026-04-26</p>
+      <p className={css.meta}>Sleepy Notify — last updated 2026-05-04</p>
 
       <p>
         This policy describes how Sleepy Notify handles your data. It supplements — and does not
@@ -35,14 +35,14 @@ export default function PrivacyPage() {
       <p>
         Reminder messages are encrypted at the application layer (AES-256-GCM with a per-record
         initialization vector) before being written to the database. The encryption key is held only
-        by the deployed Worker, not in the database. Storage itself is Cloudflare D1, which is also
-        encrypted at rest.
+        by the deployed Worker, not in the database. Storage itself is Cloudflare Durable Object
+        SQLite which is also encrypted at rest by Cloudflare.
       </p>
 
       <h2>Where it&apos;s stored</h2>
       <p>
-        In Cloudflare D1 — a SQLite-backed database hosted on Cloudflare&apos;s infrastructure. Data
-        lives in Cloudflare&apos;s regional datacenters; no copies are exported to other providers.
+        In Cloudflare Durable Object SQLite — one isolated database per Telegram user, hosted on
+        Cloudflare&apos;s infrastructure. No copies are exported to other providers.
       </p>
 
       <h2>Who can see it</h2>
