@@ -1,24 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ConflictError } from "../src/lib/errors";
 import type { Env } from "../src/env";
-import type { NotificationRow } from "../src/db/notifications";
-import type { User } from "../src/db/schema";
+import type { Notification } from "../src/scheduler/user-do/types";
 
-const dbMocks = vi.hoisted(() => ({
-  createNotification: vi.fn(),
-  listByUser: vi.fn(),
-  updateNotification: vi.fn(),
-  deleteNotification: vi.fn(),
-  MAX_NOTIFICATIONS_PER_USER: 50,
+const stubMethods = vi.hoisted(() => ({
+  bind: vi.fn(),
+  destroy: vi.fn(),
+  profile: vi.fn(),
+  list: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
 }));
-vi.mock("../src/db/notifications", () => dbMocks);
-
-const userMocks = vi.hoisted(() => ({
-  getUser: vi.fn(),
-  upsertUser: vi.fn(),
-  deleteUser: vi.fn(),
+vi.mock("../src/scheduler/user-do/stub", () => ({
+  userDoStub: () => stubMethods,
 }));
-vi.mock("../src/db/users", () => userMocks);
 
 const authMocks = vi.hoisted(() => ({
   verifyInitData: vi.fn(),
@@ -33,15 +29,15 @@ const fakeEnv = {
 } as unknown as Env;
 
 const tgUser = { id: 100, first_name: "Test" };
-const dbUser: User = { id: 100, chat_id: 100, created_at: 0 };
+const profile = { chat_id: 100, created_at: 0 };
 
-const fakeRow: NotificationRow = {
+const fakeRow: Notification = {
   id: "n1",
-  user_id: 100,
-  message: "hello",
+  kind: "one_time",
   time: "10:00",
   timezone: "Europe/Helsinki",
-  kind: "one_time",
+  message: "hello",
+  date: "2099-01-01",
   next_fire_at: 1_700_000_000_000,
   last_sent_at: null,
   created_at: 0,
@@ -76,7 +72,7 @@ async function call(
 beforeEach(() => {
   vi.clearAllMocks();
   authMocks.verifyInitData.mockResolvedValue(tgUser);
-  userMocks.getUser.mockResolvedValue(dbUser);
+  stubMethods.profile.mockResolvedValue(profile);
 });
 
 describe("auth on /api/notifications", () => {
@@ -91,8 +87,8 @@ describe("auth on /api/notifications", () => {
     expect(status).toBe(401);
   });
 
-  it("401 when user has not run /start (no DB row)", async () => {
-    userMocks.getUser.mockResolvedValueOnce(null);
+  it("401 when user has not run /start (DO profile null)", async () => {
+    stubMethods.profile.mockResolvedValueOnce(null);
     const { status, body } = await call("GET", "/api/notifications");
     expect(status).toBe(401);
     expect(body).toMatchObject({ message: expect.stringContaining("/start") });
@@ -101,15 +97,15 @@ describe("auth on /api/notifications", () => {
 
 describe("POST /api/notifications", () => {
   it("201 with the created notification", async () => {
-    dbMocks.createNotification.mockResolvedValue(fakeRow);
+    stubMethods.create.mockResolvedValue(fakeRow);
     const { status, body } = await call("POST", "/api/notifications", validBody);
     expect(status).toBe(201);
     expect(body).toEqual({ notification: fakeRow });
-    expect(dbMocks.createNotification).toHaveBeenCalledWith(fakeEnv, 100, validBody);
+    expect(stubMethods.create).toHaveBeenCalledWith(validBody);
   });
 
   it("409 when the per-user reminder cap is reached", async () => {
-    dbMocks.createNotification.mockRejectedValue(
+    stubMethods.create.mockRejectedValue(
       new ConflictError("reminder limit (50) reached"),
     );
     const { status, body } = await call("POST", "/api/notifications", validBody);
@@ -121,15 +117,15 @@ describe("POST /api/notifications", () => {
 describe("PATCH /api/notifications/:id", () => {
   it("200 with the updated notification", async () => {
     const updated = { ...fakeRow, message: "edited" };
-    dbMocks.updateNotification.mockResolvedValue(updated);
+    stubMethods.update.mockResolvedValue(updated);
     const { status, body } = await call("PATCH", "/api/notifications/n1", { message: "edited" });
     expect(status).toBe(200);
     expect(body).toEqual({ notification: updated });
-    expect(dbMocks.updateNotification).toHaveBeenCalledWith(fakeEnv, 100, "n1", { message: "edited" });
+    expect(stubMethods.update).toHaveBeenCalledWith("n1", { message: "edited" });
   });
 
   it("404 when the id does not belong to the user", async () => {
-    dbMocks.updateNotification.mockResolvedValue(null);
+    stubMethods.update.mockResolvedValue(null);
     const { status } = await call("PATCH", "/api/notifications/missing", { message: "x" });
     expect(status).toBe(404);
   });
@@ -137,15 +133,15 @@ describe("PATCH /api/notifications/:id", () => {
 
 describe("DELETE /api/notifications/:id", () => {
   it("200 when the row is deleted", async () => {
-    dbMocks.deleteNotification.mockResolvedValue(true);
+    stubMethods.delete.mockResolvedValue(true);
     const { status, body } = await call("DELETE", "/api/notifications/n1");
     expect(status).toBe(200);
     expect(body).toEqual({ ok: true });
-    expect(dbMocks.deleteNotification).toHaveBeenCalledWith(fakeEnv, 100, "n1");
+    expect(stubMethods.delete).toHaveBeenCalledWith("n1");
   });
 
   it("404 when the row is missing or not the caller's", async () => {
-    dbMocks.deleteNotification.mockResolvedValue(false);
+    stubMethods.delete.mockResolvedValue(false);
     const { status } = await call("DELETE", "/api/notifications/n1");
     expect(status).toBe(404);
   });
