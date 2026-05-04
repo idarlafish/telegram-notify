@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { daysToBitmask, bitmaskToDays, type WeekDay } from "../src/db/mappers";
+import { daysToBitmask, bitmaskToDays, type WeekDay } from "../src/scheduler/user-do/mappers";
 
 describe("daysToBitmask / bitmaskToDays", () => {
   it("maps single days to powers of two (Mon=1..Sun=64)", () => {

@@ -1,7 +1,5 @@
 // Cloudflare Worker bindings (matches wrangler.toml).
 export interface Env {
-  DB: D1Database;
-  CRON_STATE: KVNamespace;
   ANALYTICS: AnalyticsEngineDataset;
   BOT_TOKEN: string;
   WEBHOOK_SECRET: string;

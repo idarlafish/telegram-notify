@@ -1,29 +1,30 @@
 # Encryption
 
 Reminder `message` fields are encrypted at the application layer with
-AES-256-GCM before being stored in D1. Implementation in `src/lib/crypto.ts`.
+AES-256-GCM before being stored in per-user Durable Object SQLite.
+Implementation in `src/lib/crypto.ts`.
 
 ## Threat model — what this protects against
 
-- D1 export ending up in the wrong place (chat paste, lost laptop, accidental
-  S3 dump).
-- An operator running `wrangler d1 execute "SELECT * FROM notifications"` and
-  reading user content over their shoulder.
-- A future hypothetical Cloudflare-side leak limited to D1 storage.
+- A DO storage export ending up in the wrong place (chat paste, lost laptop,
+  accidental dump).
+- An operator inspecting a DO's storage and reading user content over their
+  shoulder.
+- A future hypothetical Cloudflare-side leak limited to DO storage.
 - The general "we should have encryption" GDPR Article 32 box.
 
 ## What this does NOT protect against
 
 - **Anyone who can deploy to the Worker.** The Worker holds `MESSAGE_KEY`;
-  any code path executing inside it can decrypt. Reading user data becomes a
-  deliberate act (writing a script that loads the secret), but it's not
-  blocked.
+  any code path executing inside it (including the DO's `alarm()` handler)
+  can decrypt. Reading user data becomes a deliberate act (writing a script
+  that loads the secret), but it's not blocked.
 - **A compromise of the Cloudflare account.** Same reason — secrets are
   readable by anyone with deploy access.
-- **True end-to-end encryption.** Impossible by design: when the cron tick
-  fires, the Worker has to call `bot.api.sendMessage(chat_id, plaintext)`.
-  If the Worker can't decrypt the message, it can't deliver it. Any
-  "client-only key" architecture would break the bot's core function.
+- **True end-to-end encryption.** Impossible by design: when an alarm fires,
+  the DO has to call `bot.api.sendMessage(chat_id, plaintext)`. If the DO
+  can't decrypt the message, it can't deliver it. Any "client-only key"
+  architecture would break the bot's core function.
 
 The bar this clears is **"the operator can't read user data without
 intentionally setting out to."** Casual access shows base64 ciphertext.
@@ -88,13 +89,11 @@ TODO.md.
 `time`, `timezone`, `weekdays`, `next_fire_at`, `last_sent_at`, `kind` are
 all plaintext. They have no PII content (a user's reminder firing at 09:00
 on weekdays in Asia/Nicosia is not sensitive on its own), and encrypting
-them would break the index on `next_fire_at` that makes the cron query O(log
-N) instead of full-table scan.
+them would break the `idx_next_fire` index that makes the alarm-handler
+due-row query O(log N) instead of full-table scan.
 
-If you ever decide reminder *schedules* are also sensitive, the right answer
-is per-user encryption with the cron query rewritten around a user-scoped
-shard, not encrypting the index column. That's a much larger architectural
-change than encrypting `message` was.
+Schedules are already per-user-isolated — each `UserSchedulerDO` only sees
+its own user's rows. There is no cross-user query path to leak through.
 
 ## Audit checklist
 

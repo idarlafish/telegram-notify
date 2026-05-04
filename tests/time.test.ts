@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextRecurring, oneTimeFireAt } from "../src/lib/time";
+import { nextRecurring, oneTimeFireAt } from "../src/scheduler/user-do/time";
 
 describe("nextRecurring", () => {
   // 2026-01-15 is Thu; 00:00 UTC = 09:00 Asia/Tokyo (UTC+9, no DST).

@@ -2,7 +2,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
-import migrations from "../../../drizzle/migrations/migrations";
+import migrations from "../../../migrations/migrations";
 import { notifications } from "./schema";
 import { decryptMessage, encryptMessage } from "../../lib/crypto";
 import { bitmaskToDays, daysToBitmask } from "./mappers";

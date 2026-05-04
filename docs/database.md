@@ -1,32 +1,44 @@
-# Database
+# Storage
 
-D1 (SQLite-on-edge), accessed through drizzle-orm. Two tables: `users` and
-`notifications`. Schema lives in `src/db/schema.ts` and is the source of
-truth — migrations are generated from it, not hand-written.
+Per-user Durable Object SQLite. One `UserSchedulerDO` instance per Telegram
+user, addressed deterministically via
+`env.USER_SCHEDULER.idFromName('user:${telegramUserId}')`. The DO IS the user
+record — no separate users table, no D1.
 
-## Tables
+## Layout per DO
 
-**`users`** — minimal. Telegram user id is the primary key (also used as
-`chat_id` in the common case of private chats; we keep them as separate
-columns to support group-chat scenarios that aren't currently exposed in the
-Mini App but cost nothing to store).
+```
+UserSchedulerDO  (one per Telegram user)
+├── KV-style storage (DurableObjectStorage):
+│   └── "profile" → { chat_id: number, created_at: number }
+├── SQLite (drizzle-orm/durable-sqlite):
+│   └── notifications table (this user's reminders only — no user_id column)
+└── Single alarm slot (ctx.storage.{set,get,delete}Alarm)
+    Always set to MIN(next_fire_at) over the notifications table, or unset
+    when the table is empty.
+```
 
-**`notifications`** — every reminder row.
+`profile` is null until `/start` calls `bind(chat_id)`. The Mini App auth
+middleware uses `profile() === null` as the "send /start to the bot first"
+signal.
+
+## `notifications` table
+
+Schema lives in `src/scheduler/user-do/schema.ts`.
 
 ```ts
 id           text primary key            // crypto.randomUUID() at insert time
-user_id      integer not null            // FK to users.id, ON DELETE CASCADE
 message      text not null               // AES-256-GCM ciphertext (see docs/encryption.md)
 time         text not null               // "HH:MM" in user's tz
 timezone     text not null               // IANA tz, e.g. "Asia/Nicosia"
 kind         text not null               // 'one_time' | 'recurring'
 weekdays     integer                     // bitmask Mon=1..Sun=64; non-null when recurring
 next_fire_at integer not null            // UTC ms — when this row next fires
-last_sent_at integer                     // UTC ms — set by recordSent after a recurring fire
+last_sent_at integer                     // UTC ms — set on each recurring fire
 created_at   integer not null default (now)
 ```
 
-### Hard invariants enforced at the storage layer
+CHECK constraint enforces the kind/weekdays correlation:
 
 ```sql
 CHECK (
@@ -35,96 +47,83 @@ CHECK (
 )
 ```
 
-The CHECK is the single most important schema element — it makes the kind /
-weekdays correlation impossible to violate even from a buggy code path. Any
-INSERT or UPDATE that would create an inconsistent row fails at the database.
+Index on `next_fire_at` exists for the alarm-time scan and the `MIN()`
+recompute after every mutation.
 
-### `next_fire_at` semantics — same for both kinds
+## `next_fire_at` semantics
 
 `next_fire_at` always means "the next UTC ms at which this row should fire."
-The cron query treats both kinds identically:
+The alarm handler queries:
 
 ```sql
 WHERE next_fire_at <= now AND next_fire_at > now - 5min
 ```
 
-The kinds diverge **only after** a successful send, in `src/scheduler/tick.ts`:
+The 5-minute lookback catches anything missed during DO eviction or transient
+errors. After a successful send, the kinds diverge:
 
-- `kind = 'recurring'` → `recordSent` advances `next_fire_at` to the next
-  matching weekday at the configured `time` in `timezone`.
-- `kind = 'one_time'` → `deleteById` removes the row entirely. There's no
-  archived/completed state; one-time = consumed.
+- `recurring` → `next_fire_at` advances via `nextRecurring(time, tz, weekdays, sentAtMs)`
+- `one_time` → row is deleted
 
-### Why no `date` column for one-time
+Then `refreshAlarm()` recomputes `MIN(next_fire_at)` over the remaining rows
+and either `setAlarm(min)` or `deleteAlarm()` if empty.
+
+## Why no `user_id` column
+
+Each DO instance owns exactly one user's notifications. Adding a `user_id`
+would be redundant — the DO ID *is* the user identity. This is the architectural
+shift from the previous D1 design.
+
+## Why no `date` column for one-time
 
 Date is fully derivable from `format(next_fire_at, timezone)` — storing it
-would create a third source of truth that could drift from the other two.
-Frontend-side `apiRowToForm` does the derivation when prefilling the edit
-form. Wire format (POST/PATCH body) accepts a `date` field as user input;
-the server computes `next_fire_at` from `(date, time, timezone)` and stores
-only `next_fire_at`.
+would create a third source of truth. Wire format (POST/PATCH body) accepts
+`date` as user input; the server computes `next_fire_at` from
+`(date, time, timezone)` and stores only `next_fire_at`.
 
-### `weekdays` is a storage detail
+## `weekdays` is a storage detail
 
 The bitmask never appears in the API or the frontend. The wire format speaks
-`days: WeekDay[]` (`'mon'..'sun'`). Conversion lives in `src/db/mappers.ts`
-(`daysToBitmask` / `bitmaskToDays`), called at the API edge. Keep it that way
-— pushing the bitmask into the API or UI for "performance" reasons is a code
-smell at this scale (D1 can handle JSON arrays just fine; the bitmask is
-purely about clean SQL constraints).
+`days: WeekDay[]` (`'mon'..'sun'`). Conversion lives in
+`src/scheduler/user-do/mappers.ts` (`daysToBitmask` / `bitmaskToDays`),
+called inside the DO's `create` / `update` / `toApi` paths.
 
 ## Migrations — drizzle-kit owns them
 
 Workflow when you change `schema.ts`:
 
 ```bash
-# 1. Edit src/db/schema.ts
+# 1. Edit src/scheduler/user-do/schema.ts
 # 2. Generate the migration SQL + meta snapshot
 bunx drizzle-kit generate
 
-# 3. Apply locally + remotely
-bun run db:migrate:local
-bun run db:migrate:remote
-
-# 4. Commit BOTH the new SQL file AND migrations/meta/_journal.json + the
-#    new snapshot file. Without the meta snapshot, future drizzle-kit
-#    generate will produce broken diffs.
-git add migrations/
+# 3. Commit the new SQL file + meta snapshot
+git add drizzle/migrations/
 ```
 
-Never write SQL files in `migrations/` by hand. drizzle-kit is the ONLY
-writer of that directory.
+`drizzle.config.ts` uses `driver: "durable-sqlite"`, so generated migrations
+target the DO's SQLite engine. The DO constructor calls
+`migrate(this.db, migrations)` inside `ctx.blockConcurrencyWhile()` on every
+cold start — pending migrations apply per-DO at next wake. There is no global
+"apply migrations" step; each user's DO migrates independently when next
+touched.
 
-### Wipe-and-reseed philosophy
-
-This project has one user. Every schema change so far has been "wipe + reseed"
-— the migrations directory does not contain any data-preserving backfill
-code, and we're free to break things forward. If/when the user count grows
-beyond two or three, this stops being safe and the migration story has to
-shift to genuine forward-compatible changes. For now, prefer:
-
-```bash
-bunx wrangler d1 execute telegram-notify-db --remote --command="DELETE FROM notifications;"
-# ...modify schema, generate, apply
-```
-
-over writing UPDATE backfills that you'll only run once.
-
-### The CHECK constraint and ALTER TABLE
-
-SQLite cannot `ALTER TABLE ADD CHECK`. drizzle-kit handles this by emitting
-the standard SQLite "create new table, copy data, drop old, rename" pattern.
-For an empty `notifications` table this is a no-op; for a populated one it
-reads + re-inserts every row. At our row counts (single digits) it doesn't
-matter, but it's worth knowing if you ever wonder why the migration SQL
-looks complicated for a "just add a column" change.
+The auto-emitted `drizzle/migrations/migrations.js` (drizzle-kit's bundler
+entry that re-exports the migrations array) is imported by the DO via a
+sibling `migrations.d.ts` shim. Don't hand-edit either of those.
 
 ## Backups
 
-D1 Time Travel (built-in, free, 30-day window) is the primary backup. See
-the README's "Operational notes" section for the commands. For one-shot
-exports before risky changes:
+DO storage is durable per-namespace and replicated by Cloudflare. There is no
+per-DO backup primitive equivalent to D1 Time Travel; the operational story
+for restore-from-disaster is "recover from the source of truth," which is
+Telegram itself (message history). For high-value future use cases, consider
+periodic export of all DOs to R2.
 
-```bash
-bunx wrangler d1 export telegram-notify-db --remote --output=backup-$(date +%F).sql
-```
+## Removed
+
+The previous D1 + `users` + cron-driven design has been migrated out (see
+the per-user DO migration spec for the reasoning). What was D1 +
+cron-every-minute is now per-user DO + alarm-on-MIN-next-fire-at. Cron lag
+(70–90s at top-of-hour, observed in production analytics for May 1–4 2026)
+is replaced by sub-second DO alarm precision.

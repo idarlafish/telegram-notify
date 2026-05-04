@@ -6,36 +6,10 @@ account_id = "95c5c6e1c01ea2d0c9fab69ee9e28462"
 
 routes = [{ pattern = "telegram-notify.la.fish", custom_domain = true }]
 
-# See ./tail-worker/.
-tail_consumers = [{ service = "telegram-notify-tail" }]
-
-# Cron Trigger: scan D1 for due notifications every minute.
-[triggers]
-crons = ["* * * * *"]
-
-# D1 database binding.
-[[d1_databases]]
-binding = "DB"
-database_name = "telegram-notify-db"
-database_id = "d8757e49-34a9-4bb9-b574-5dd53c26a5b6"
-migrations_dir = "migrations"
-
-# KV for system state (cron heartbeat). Reads via env.CRON_STATE.get(),
-# writes via .put(). External monitor hits /health/cron.
-[[kv_namespaces]]
-binding = "CRON_STATE"
-id = "75110f95428d4bbebc453f2fae407883"
-
 [[analytics_engine_datasets]]
 binding = "ANALYTICS"
 dataset = "telegram_notify_events"
 
-# Bot token + webhook secret are stored as secrets, not in vars.
-# Set with: wrangler secret put BOT_TOKEN ; wrangler secret put WEBHOOK_SECRET
-# For local dev, copy .dev.vars.example to .dev.vars and fill in.
-
-# React Mini App built by `bun run build` → web/dist/. SPA fallback so
-# TanStack Router handles client-side routes (/new, /edit/:id, …).
 [assets]
 directory = "./web/dist"
 binding = "ASSETS"
@@ -57,10 +31,6 @@ new_sqlite_classes = ["UserSchedulerDO"]
 [env.staging]
 name = "telegram-notify-staging"
 routes = [{ pattern = "telegram-notify-staging.la.fish", custom_domain = true }]
-tail_consumers = [{ service = "telegram-notify-tail" }]
-
-[env.staging.triggers]
-crons = []
 
 [[env.staging.durable_objects.bindings]]
 name = "USER_SCHEDULER"

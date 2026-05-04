@@ -4,5 +4,5 @@ export default defineConfig({
   dialect: "sqlite",
   driver: "durable-sqlite",
   schema: "./src/scheduler/user-do/schema.ts",
-  out: "./drizzle/migrations",
+  out: "./migrations",
 });
