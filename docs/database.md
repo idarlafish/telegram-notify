@@ -98,7 +98,7 @@ Workflow when you change `schema.ts`:
 bunx drizzle-kit generate
 
 # 3. Commit the new SQL file + meta snapshot
-git add drizzle/migrations/
+git add migrations/
 ```
 
 `drizzle.config.ts` uses `driver: "durable-sqlite"`, so generated migrations
@@ -108,17 +108,40 @@ cold start — pending migrations apply per-DO at next wake. There is no global
 "apply migrations" step; each user's DO migrates independently when next
 touched.
 
-The auto-emitted `drizzle/migrations/migrations.js` (drizzle-kit's bundler
-entry that re-exports the migrations array) is imported by the DO via a
-sibling `migrations.d.ts` shim. Don't hand-edit either of those.
+The auto-emitted `migrations/migrations.js` (drizzle-kit's bundler entry that
+re-exports the migrations array) is imported by the DO via a sibling
+`migrations.d.ts` shim. Don't hand-edit either of those.
 
-## Backups
+## Backups — built-in 30-day Point-in-Time Recovery
 
-DO storage is durable per-namespace and replicated by Cloudflare. There is no
-per-DO backup primitive equivalent to D1 Time Travel; the operational story
-for restore-from-disaster is "recover from the source of truth," which is
-Telegram itself (message history). For high-value future use cases, consider
-periodic export of all DOs to R2.
+SQLite-backed Durable Objects ship with [Point-in-Time Recovery](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/)
+(PITR) for the past 30 days. **No code, no configuration, no R2 binding** —
+it's already on for `UserSchedulerDO`. Equivalent to D1's Time Travel.
+
+API surface (called from inside the DO):
+
+```ts
+// Get a marker for "now" — store somewhere if you want to restore to this point later.
+const now = await this.ctx.storage.getCurrentBookmark();
+
+// Get a marker for a past time.
+const past = await this.ctx.storage.getBookmarkForTime(new Date("2026-05-01T08:00:00Z"));
+
+// Schedule a restore — applies on the DO's next session start.
+await this.ctx.storage.onNextSessionRestoreBookmark(past);
+await this.ctx.abort();   // restart this DO; comes back on the restored bookmark
+```
+
+Restore is per-DO (one user at a time). To restore an entire user's reminder
+state from yesterday, you'd `getBookmarkForTime(yesterday)` and `abort()`
+inside that user's DO — typically via a one-shot admin RPC.
+
+When 30 days isn't enough — e.g. you want offsite copies surviving a CF
+account compromise, or longer retention — the right pattern is **scheduled
+cron + R2 export, kept strictly separate from any user-facing code path**.
+Don't tie backup writes to alarm or mutation handlers; that violates
+separation of concerns and adds latency to user requests for no real benefit
+when PITR already covers the common case.
 
 ## Removed
 
