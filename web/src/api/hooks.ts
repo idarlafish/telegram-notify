@@ -9,6 +9,7 @@ export function useNotifications() {
     queryKey: notificationsKey,
     queryFn: () => api.list(),
     staleTime: 60_000,
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
 }

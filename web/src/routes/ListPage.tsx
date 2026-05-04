@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useNotifications } from "../api/hooks";
 import { useMainButton } from "../lib/telegram";
@@ -9,17 +9,11 @@ import { Skeleton } from "../components/Skeleton";
 export default function ListPage() {
   const navigate = useNavigate();
   const q = useNotifications();
-  const [, setTick] = useState(0);
   const handleCreate = useCallback(() => {
     navigate({ to: "/new" });
   }, [navigate]);
 
   useMainButton("Create Reminder", handleCreate);
-
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 30_000);
-    return () => clearInterval(id);
-  }, []);
 
   if (q.isLoading) {
     return (
