@@ -1,0 +1,7 @@
+# SHAs to skip in `git blame` — pure-formatting / mass-rename commits with no
+# behavior change. GitHub's blame view respects this file automatically; for
+# local CLI, opt in once with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# chore: add Prettier; format codebase (one-shot reformat across 62 files)
+059a8a1c7442bf9c065f5986b535d49444e47e52
