@@ -57,6 +57,10 @@ new_sqlite_classes = ["UserSchedulerDO"]
 [env.staging]
 name = "telegram-notify-staging"
 routes = [{ pattern = "telegram-notify-staging.la.fish", custom_domain = true }]
+tail_consumers = [{ service = "telegram-notify-tail" }]
+
+[env.staging.triggers]
+crons = []
 
 [[env.staging.durable_objects.bindings]]
 name = "USER_SCHEDULER"
