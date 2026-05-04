@@ -58,9 +58,6 @@ Read the topic file that matches your task — don't pre-load everything.
 | Per-user DO storage / migrations                      | `docs/database.md`     |
 | Encryption / privacy posture                          | `docs/encryption.md`   |
 | Telegram bot config (webhook, menu button, BotFather) | `docs/telegram-bot.md` |
-| Local dev workflow + tunneling for Mini App           | `docs/development.md`  |
-| Deployment + cutover procedures                       | `docs/deploy.md`       |
-| Frontend architecture (router/query/form)             | `docs/frontend.md`     |
 
 ## Working commands
 

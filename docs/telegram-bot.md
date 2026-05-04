@@ -1,8 +1,6 @@
 # Telegram bot operations
 
-The Worker serves a single bot, **`@sleepy_notify_bot`** (id `8578148373`).
-Token lives in `.env` as `BOT_TOKEN` AND on the Worker as the `BOT_TOKEN`
-secret. Both must match. Same applies to `WEBHOOK_SECRET` and `MESSAGE_KEY`.
+The Worker serves a single bot, **`@sleepy_notify_bot`**. `BOT_TOKEN` lives in `.env` AND on the Worker as the `BOT_TOKEN` secret — both must match. Same applies to `WEBHOOK_SECRET` and `MESSAGE_KEY`.
 
 ## The webhook-secret pitfall (read this first)
 
