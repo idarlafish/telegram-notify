@@ -5,7 +5,7 @@
 Telegram reminder bot with a Telegram Mini App.
 
 [![CI](https://github.com/idarlafish/telegram-notify/actions/workflows/ci.yml/badge.svg)](https://github.com/idarlafish/telegram-notify/actions/workflows/ci.yml)
-![License](https://img.shields.io/github/license/idarlafish/telegram-notify)
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Runtime](https://img.shields.io/badge/runtime-Cloudflare%20Workers-f38020)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-3178c6)
 
