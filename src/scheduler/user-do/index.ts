@@ -2,7 +2,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
-import migrations from "../../../drizzle/migrations";
+import migrations from "../../../drizzle/migrations/migrations";
 import { notifications } from "./schema";
 import type { Env } from "../../env";
 
