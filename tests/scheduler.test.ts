@@ -107,6 +107,20 @@ describe("runCronTick", () => {
     expect(kv.get("last_cron_tick_at")).toBe("1700000005000");
   });
 
+  it("emits dispatch_lag_ms on cron_tick when scheduledTimeMs provided", async () => {
+    dbMocks.findDueNotifications.mockResolvedValue([]);
+    const { env } = fakeEnv();
+    const scheduledMs = 1_700_000_000_000;
+    const nowMs = scheduledMs + 5_000;
+
+    await runCronTick(env, nowMs, scheduledMs);
+
+    const writeDataPoint = env.ANALYTICS.writeDataPoint as ReturnType<typeof vi.fn>;
+    const tickCall = writeDataPoint.mock.calls.find((c) => c[0].blobs?.[0] === "cron_tick");
+    expect(tickCall, "no cron_tick analytics event written").toBeDefined();
+    expect(tickCall![0].doubles).toContain(5_000);
+  });
+
   it("heartbeat is throttled — second tick within 5 min does not rewrite", async () => {
     dbMocks.findDueNotifications.mockResolvedValue([]);
     const { env, kv } = fakeEnv();

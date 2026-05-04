@@ -18,11 +18,20 @@ const HEARTBEAT_INTERVAL_MS = 5 * 60_000;
 const HEARTBEAT_TTL_SECONDS = 15 * 60;
 
 // Uncaught read failures skip the heartbeat — that's the D1-down alarm.
-export async function runCronTick(env: Env, nowMs: number = Date.now()): Promise<void> {
+// `scheduledTimeMs` is the cron's intended dispatch instant (from
+// ScheduledController.scheduledTime). When supplied we emit dispatch_lag_ms
+// so we can see Cloudflare cron jitter on every tick.
+export async function runCronTick(
+  env: Env,
+  nowMs: number = Date.now(),
+  scheduledTimeMs?: number,
+): Promise<void> {
   const tickStart = Date.now();
   await fireDueNotifications(env, nowMs);
   await heartbeat(env, nowMs);
-  logger.event(env, "cron_tick", { duration_ms: Date.now() - tickStart });
+  const fields: Record<string, number> = { duration_ms: Date.now() - tickStart };
+  if (scheduledTimeMs !== undefined) fields.dispatch_lag_ms = nowMs - scheduledTimeMs;
+  logger.event(env, "cron_tick", fields);
 }
 
 async function fireDueNotifications(env: Env, nowMs: number): Promise<void> {

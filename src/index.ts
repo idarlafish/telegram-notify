@@ -8,7 +8,7 @@ export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext) {
     return app.fetch(request, env, ctx);
   },
-  async scheduled(_event: ScheduledController, env: Env): Promise<void> {
-    await runCronTick(env);
+  async scheduled(event: ScheduledController, env: Env): Promise<void> {
+    await runCronTick(env, Date.now(), event.scheduledTime);
   },
 };
