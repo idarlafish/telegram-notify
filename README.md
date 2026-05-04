@@ -22,17 +22,19 @@ graph LR
   user[Telegram user]
 
   subgraph cf[Cloudflare Worker — telegram-notify.la.fish]
-    api[Hono API<br/>/api/notifications]
+    api[Hono API<br/>/api/notifications<br/>/api/users]
     webhook[Bot webhook<br/>/telegram-webhook]
     assets[Mini App static assets<br/>React + Vite]
+    services[/services<br/>user.ts · notifications.ts/]
     do[(UserSchedulerDO<br/>per user · SQLite + 1 alarm)]
   end
 
   user -->|opens Mini App| assets
   user -->|/start, /stop| webhook
-  assets -->|fetch /api/notifications| api
-  api -->|RPC| do
-  webhook -->|RPC bind / destroy| do
+  assets -->|fetch /api/...| api
+  api -->|function call| services
+  webhook -->|function call| services
+  services -->|RPC| do
   do -.->|alarm fires<br/>bot.api.sendMessage| user
 ```
 
@@ -42,6 +44,13 @@ via `idFromName('user:${telegramUserId}')`. That DO owns the user's
 notifications table, profile (chat_id), and exactly one alarm slot pointing
 at `MIN(next_fire_at)` over the table.
 
+**Service layer.** Both Hono routes and Telegram bot commands go through
+`src/services/` — the only allowed callers of the DO stub. Direct DO stub
+imports outside the service layer are forbidden by an ESLint rule
+(`no-restricted-imports`) so the boundary is enforced mechanically. This is
+the seam where future cross-cutting concerns (rate limiting, audit logs,
+authorization gates) will live without duplication between entry points.
+
 ### Lifecycle of a reminder
 
 ```mermaid
@@ -49,15 +58,18 @@ sequenceDiagram
   participant U as User (Telegram)
   participant W as Webhook
   participant A as Mini App API
+  participant S as services/*
   participant DO as UserSchedulerDO
   participant T as Telegram API
 
   U->>W: /start in DM (chat_id=12345)
-  W->>DO: bind(12345)
+  W->>S: bindUser(12345, 12345)
+  S->>DO: bind(12345)
   Note over DO: profile = { chat_id: 12345, created_at: now }
 
   U->>A: open Mini App, POST /api/notifications<br/>{kind:"recurring", time:"10:00", days:["mon".."fri"]}
-  A->>DO: create(input)
+  A->>S: createNotification(input)
+  S->>DO: create(input)
   Note over DO: encrypt(message)<br/>INSERT row<br/>setAlarm(next 10:00)
 
   Note over DO: ...time passes...
@@ -84,10 +96,11 @@ encryption, see [`docs/encryption.md`](docs/encryption.md).
 ## Layout
 
 ```
-src/                      Worker — API, bot, scheduler
-  api/                    Hono routes + middleware
-  telegram/               grammY webhook + commands
-  scheduler/user-do/      UserSchedulerDO class, schema, time math, mappers
+src/                      Worker — API, bot, services, scheduler
+  api/                    Hono routes + middleware (calls services)
+  services/               canonical seam between callers and the DO stub
+  telegram/               grammY webhook + commands (calls services)
+  scheduler/user-do/      UserSchedulerDO class + alarm/crud/profile modules
   lib/                    crypto, logger, errors
 web/                      React Mini App (Bun workspace)
   src/
@@ -143,14 +156,16 @@ the tunnel URL on a _dev_ bot (don't repoint the prod webhook).
 All requests authenticate via `Authorization: tma <initData>` header.
 Wire format speaks `days: WeekDay[]`; bitmasks live only in storage.
 
-| Method | Path                     | Body                                                                  | Response                    |
-| ------ | ------------------------ | --------------------------------------------------------------------- | --------------------------- |
-| GET    | `/api/notifications`     | —                                                                     | `{ items: Notification[] }` |
-| POST   | `/api/notifications`     | `{ kind, time, timezone, message, days?, date? }` (variant on `kind`) | `{ notification }` (201)    |
-| PATCH  | `/api/notifications/:id` | partial of POST body                                                  | `{ notification }`          |
-| DELETE | `/api/notifications/:id` | —                                                                     | `{ ok: true }`              |
-| GET    | `/health`                | —                                                                     | `{ status: "ok" }`          |
-| POST   | `/telegram-webhook`      | Telegram update (validated by `x-telegram-bot-api-secret-token`)      | grammY response             |
+| Method | Path                     | Body                                                                  | Response                               |
+| ------ | ------------------------ | --------------------------------------------------------------------- | -------------------------------------- |
+| GET    | `/api/notifications`     | —                                                                     | `{ items: Notification[] }`            |
+| POST   | `/api/notifications`     | `{ kind, time, timezone, message, days?, date? }` (variant on `kind`) | `{ notification }` (201)               |
+| PATCH  | `/api/notifications/:id` | partial of POST body                                                  | `{ notification }`                     |
+| DELETE | `/api/notifications/:id` | —                                                                     | `{ ok: true }`                         |
+| GET    | `/api/users/me`          | —                                                                     | `{ profile: { chat_id, created_at } }` |
+| DELETE | `/api/users/me`          | — (destroys all your data)                                            | `{ ok: true }`                         |
+| GET    | `/health`                | —                                                                     | `{ status: "ok" }`                     |
+| POST   | `/telegram-webhook`      | Telegram update (validated by `x-telegram-bot-api-secret-token`)      | grammY response                        |
 
 ## Bot commands
 
