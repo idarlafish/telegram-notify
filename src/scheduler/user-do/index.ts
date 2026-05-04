@@ -4,10 +4,12 @@ import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlit
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 import migrations from "../../../drizzle/migrations/migrations";
 import { notifications } from "./schema";
-import { decryptMessage } from "../../lib/crypto";
-import { bitmaskToDays } from "./mappers";
+import { decryptMessage, encryptMessage } from "../../lib/crypto";
+import { bitmaskToDays, daysToBitmask } from "./mappers";
 import type { Env } from "../../env";
-import type { Notification, Profile } from "./types";
+import { nextRecurring, oneTimeFireAt } from "./time";
+import { sql } from "drizzle-orm";
+import type { Notification, NotificationInput, Profile } from "./types";
 
 type Schema = { notifications: typeof notifications };
 
@@ -45,6 +47,50 @@ export class UserSchedulerDO extends DurableObject<Env> {
   async list(): Promise<Notification[]> {
     const rows = await this.db.select().from(notifications).orderBy(notifications.time);
     return Promise.all(rows.map((r) => this.toApi(r)));
+  }
+
+  async create(input: NotificationInput): Promise<Notification> {
+    const id = crypto.randomUUID();
+    const nextFireAt = input.kind === "recurring"
+      ? nextRecurring(input.time, input.timezone, daysToBitmask(input.days))
+      : oneTimeFireAt(input.date, input.time, input.timezone);
+    const ciphertext = await encryptMessage(this.env, input.message);
+
+    await this.db.insert(notifications).values({
+      id,
+      message: ciphertext,
+      time: input.time,
+      timezone: input.timezone,
+      kind: input.kind,
+      weekdays: input.kind === "recurring" ? daysToBitmask(input.days) : null,
+      next_fire_at: nextFireAt,
+    });
+
+    await this.refreshAlarm();
+
+    const base: Notification = {
+      id,
+      kind: input.kind,
+      time: input.time,
+      timezone: input.timezone,
+      message: input.message,
+      next_fire_at: nextFireAt,
+      last_sent_at: null,
+      created_at: Date.now(),
+    };
+    if (input.kind === "recurring") base.days = input.days;
+    return base;
+  }
+
+  private async refreshAlarm(): Promise<void> {
+    const [row] = await this.db
+      .select({ min: sql<number | null>`MIN(${notifications.next_fire_at})` })
+      .from(notifications);
+    if (row?.min == null) {
+      await this.storage.deleteAlarm();
+    } else {
+      await this.storage.setAlarm(row.min);
+    }
   }
 
   private async toApi(r: typeof notifications.$inferSelect): Promise<Notification> {
