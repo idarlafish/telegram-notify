@@ -132,6 +132,14 @@ export class UserSchedulerDO extends DurableObject<Env> {
     return this.toApi(updated);
   }
 
+  async delete(id: string): Promise<boolean> {
+    const [exists] = await this.db.select({ id: notifications.id }).from(notifications).where(eq(notifications.id, id)).limit(1);
+    if (!exists) return false;
+    await this.db.delete(notifications).where(eq(notifications.id, id));
+    await this.refreshAlarm();
+    return true;
+  }
+
   private async refreshAlarm(): Promise<void> {
     const [row] = await this.db
       .select({ min: sql<number | null>`MIN(${notifications.next_fire_at})` })

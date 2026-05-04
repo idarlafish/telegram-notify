@@ -122,3 +122,26 @@ describe("UserSchedulerDO — update", () => {
     expect(r).toBeNull();
   });
 });
+
+describe("UserSchedulerDO — delete", () => {
+  it("deletes a row and clears alarm if it was the last", async () => {
+    const s = stub(40);
+    await s.bind(40);
+    const created = await s.create({
+      kind: "one_time",
+      time: "12:00",
+      timezone: "Europe/Helsinki",
+      message: "x",
+      date: "2099-01-01",
+    });
+    expect(await s.delete(created.id)).toBe(true);
+    expect(await s.list()).toEqual([]);
+    expect(await getAlarm(40)).toBeNull();
+  });
+
+  it("returns false on unknown id", async () => {
+    const s = stub(41);
+    await s.bind(41);
+    expect(await s.delete("00000000-0000-0000-0000-000000000000")).toBe(false);
+  });
+});
