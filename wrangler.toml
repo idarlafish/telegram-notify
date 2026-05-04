@@ -53,3 +53,24 @@ class_name = "UserSchedulerDO"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["UserSchedulerDO"]
+
+[env.staging]
+name = "telegram-notify-staging"
+routes = [{ pattern = "telegram-notify-staging.la.fish", custom_domain = true }]
+
+[[env.staging.durable_objects.bindings]]
+name = "USER_SCHEDULER"
+class_name = "UserSchedulerDO"
+
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["UserSchedulerDO"]
+
+[[env.staging.analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "telegram_notify_events_staging"
+
+[env.staging.assets]
+directory = "./web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
