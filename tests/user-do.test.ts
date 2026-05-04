@@ -190,4 +190,5 @@ describe("UserSchedulerDO — alarm", () => {
     expect(after).toHaveLength(2);
     for (const r of after) expect(r.next_fire_at).toBeGreaterThan(Date.now());
   });
+
 });

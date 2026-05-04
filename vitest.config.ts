@@ -4,6 +4,7 @@ import { defineConfig } from "vitest/config";
 
 const fetchMock = createFetchMock();
 fetchMock.disableNetConnect();
+
 fetchMock
   .get("https://api.telegram.org")
   .intercept({ path: /.*/, method: "POST" })
