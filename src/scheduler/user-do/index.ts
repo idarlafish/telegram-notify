@@ -8,8 +8,8 @@ import { decryptMessage, encryptMessage } from "../../lib/crypto";
 import { bitmaskToDays, daysToBitmask } from "./mappers";
 import type { Env } from "../../env";
 import { nextRecurring, oneTimeFireAt } from "./time";
-import { sql } from "drizzle-orm";
-import type { Notification, NotificationInput, Profile } from "./types";
+import { sql, eq } from "drizzle-orm";
+import type { Notification, NotificationInput, Profile, UpdateInput } from "./types";
 
 type Schema = { notifications: typeof notifications };
 
@@ -80,6 +80,56 @@ export class UserSchedulerDO extends DurableObject<Env> {
     };
     if (input.kind === "recurring") base.days = input.days;
     return base;
+  }
+
+  async update(id: string, patch: UpdateInput): Promise<Notification | null> {
+    const [cur] = await this.db.select().from(notifications).where(eq(notifications.id, id)).limit(1);
+    if (!cur) return null;
+
+    const currentMessage = await decryptMessage(this.env, cur.message);
+    const merged = (cur.kind === "recurring"
+      ? {
+          kind: "recurring" as const,
+          time: patch.time ?? cur.time,
+          timezone: patch.timezone ?? cur.timezone,
+          message: patch.message ?? currentMessage,
+          days: patch.days ?? bitmaskToDays(cur.weekdays!),
+        }
+      : {
+          kind: "one_time" as const,
+          time: patch.time ?? cur.time,
+          timezone: patch.timezone ?? cur.timezone,
+          message: patch.message ?? currentMessage,
+          date: patch.date ?? new Intl.DateTimeFormat("en-CA", {
+            timeZone: cur.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+          }).format(new Date(cur.next_fire_at)),
+        }) satisfies NotificationInput;
+
+    const recompute =
+      patch.time !== undefined || patch.timezone !== undefined ||
+      patch.days !== undefined || patch.date !== undefined;
+
+    const updateValues: Record<string, unknown> = {
+      time: merged.time,
+      timezone: merged.timezone,
+      message: await encryptMessage(this.env, merged.message),
+    };
+    if (merged.kind === "recurring") updateValues.weekdays = daysToBitmask(merged.days);
+    if (recompute) {
+      updateValues.next_fire_at = merged.kind === "recurring"
+        ? nextRecurring(merged.time, merged.timezone, daysToBitmask(merged.days))
+        : oneTimeFireAt(merged.date, merged.time, merged.timezone);
+    }
+
+    const [updated] = await this.db
+      .update(notifications)
+      .set(updateValues)
+      .where(eq(notifications.id, id))
+      .returning();
+
+    if (!updated) return null;
+    await this.refreshAlarm();
+    return this.toApi(updated);
   }
 
   private async refreshAlarm(): Promise<void> {

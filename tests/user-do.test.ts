@@ -98,3 +98,27 @@ describe("UserSchedulerDO — create + refreshAlarm", () => {
     expect(await getAlarm(21)).toBe(b.next_fire_at);
   });
 });
+
+describe("UserSchedulerDO — update", () => {
+  it("updates time and recomputes next_fire_at", async () => {
+    const s = stub(30);
+    await s.bind(30);
+    const created = await s.create({
+      kind: "recurring",
+      time: "10:00",
+      timezone: "Europe/Helsinki",
+      message: "m",
+      days: ["mon"],
+    });
+    const updated = await s.update(created.id, { time: "14:00" });
+    expect(updated?.time).toBe("14:00");
+    expect(updated?.next_fire_at).not.toBe(created.next_fire_at);
+  });
+
+  it("returns null on unknown id", async () => {
+    const s = stub(31);
+    await s.bind(31);
+    const r = await s.update("00000000-0000-0000-0000-000000000000", { time: "12:00" });
+    expect(r).toBeNull();
+  });
+});
