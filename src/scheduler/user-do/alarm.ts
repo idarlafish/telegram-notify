@@ -18,6 +18,7 @@ export type AlarmCtx = {
 };
 
 const LOOKBACK_MS = 5 * 60_000;
+const FALLBACK_RETRY_MS = 60_000;
 
 export async function fireAndAdvance(ctx: AlarmCtx): Promise<void> {
   const profile = await getProfile(ctx.storage);
@@ -36,9 +37,7 @@ export async function fireAndAdvance(ctx: AlarmCtx): Promise<void> {
     return;
   }
 
-  let retryAfterMs: number | null = null;
-
-  await Promise.all(
+  const outcomes = await Promise.all(
     due.map(async (n) => {
       try {
         await sendNotification(
@@ -59,25 +58,45 @@ export async function fireAndAdvance(ctx: AlarmCtx): Promise<void> {
             .where(eq(notifications.id, n.id));
         }
         logger.event(ctx.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "ok" });
+        return { kind: "ok" as const };
       } catch (err) {
         if (is429(err)) {
-          retryAfterMs = Math.max(retryAfterMs ?? 0, parseRetryAfter(err) * 1000);
+          const retryAfterMs = parseRetryAfter(err) * 1000;
           logger.event(ctx.env, "alarm_fire", {
             id: n.id,
             kind: n.kind,
             outcome: "rate_limited",
           });
-        } else {
-          logger.event(ctx.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "error" });
-          throw err;
+          return { kind: "rate_limited" as const, retryAfterMs };
         }
+
+        logger.event(ctx.env, "alarm_fire", {
+          id: n.id,
+          kind: n.kind,
+          outcome: "error",
+          error: String(err),
+        });
+        return { kind: "error" as const };
       }
     }),
   );
 
-  if (retryAfterMs !== null) {
-    await ctx.storage.setAlarm(Date.now() + retryAfterMs);
-  } else {
-    await refreshAlarm(ctx.db, ctx.storage);
+  const maxRetryAfterMs = outcomes.reduce<number>(
+    (max, outcome) =>
+      outcome.kind === "rate_limited" ? Math.max(max, outcome.retryAfterMs) : max,
+    0,
+  );
+  const hasError = outcomes.some((outcome) => outcome.kind === "error");
+
+  if (hasError) {
+    await ctx.storage.setAlarm(Date.now() + Math.max(maxRetryAfterMs, FALLBACK_RETRY_MS));
+    return;
   }
+
+  if (maxRetryAfterMs > 0) {
+    await ctx.storage.setAlarm(Date.now() + maxRetryAfterMs);
+    return;
+  }
+
+  await refreshAlarm(ctx.db, ctx.storage);
 }
