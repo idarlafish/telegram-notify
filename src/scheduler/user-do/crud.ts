@@ -10,6 +10,13 @@ import type { Env } from "../../env";
 
 type Schema = { notifications: typeof notifications };
 type Row = typeof notifications.$inferSelect;
+type NotificationUpdate = {
+  time: string;
+  timezone: string;
+  message: string;
+  weekdays?: number | null;
+  next_fire_at?: number;
+};
 
 export type Ctx = {
   db: DrizzleSqliteDODatabase<Schema>;
@@ -99,7 +106,7 @@ export async function updateNotification(
     patch.days !== undefined ||
     patch.date !== undefined;
 
-  const updateValues: Record<string, unknown> = {
+  const updateValues: NotificationUpdate = {
     time: merged.time,
     timezone: merged.timezone,
     message: await encryptMessage(ctx.env, merged.message),
