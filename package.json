@@ -20,13 +20,16 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:web": "bun run --cwd web test",
-    "typecheck": "tsc --noEmit && bun run --cwd web typecheck"
+    "typecheck": "tsc --noEmit && bun run --cwd web typecheck",
+    "lint": "eslint ."
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.15.2",
     "@cloudflare/workers-types": "^4.20260307.1",
     "@types/bun": "latest",
+    "@typescript-eslint/parser": "^8.59.1",
     "drizzle-kit": "^0.31.10",
+    "eslint": "^10.3.0",
     "vitest": "^4.1.5",
     "wrangler": "^4.71.0"
   },

@@ -1,4 +1,4 @@
-import { userDoStub } from "../../scheduler/user-do/stub";
+import { destroyUser } from "../../services/user";
 import { logger } from "../../lib/logger";
 import type { AppBot } from "../bot";
 import type { Env } from "../../env";
@@ -10,7 +10,7 @@ const FAREWELL =
 export function registerStop(bot: AppBot, env: Env): void {
   bot.command("stop", async (ctx) => {
     if (!ctx.from) return;
-    await userDoStub(env, ctx.from.id).destroy();
+    await destroyUser(env, ctx.from.id);
     logger.info("user stopped", { user_id: ctx.from.id });
 
     await ctx.reply(FAREWELL, { reply_markup: { remove_keyboard: true } });
