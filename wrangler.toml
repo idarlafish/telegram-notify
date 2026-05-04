@@ -2,7 +2,6 @@ name = "telegram-notify"
 main = "src/index.ts"
 compatibility_date = "2026-04-01"
 compatibility_flags = ["nodejs_compat"]
-account_id = "95c5c6e1c01ea2d0c9fab69ee9e28462"
 
 routes = [{ pattern = "telegram-notify.la.fish", custom_domain = true }]
 
