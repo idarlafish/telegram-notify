@@ -8,10 +8,14 @@ import { decryptMessage, encryptMessage } from "../../lib/crypto";
 import { bitmaskToDays, daysToBitmask } from "./mappers";
 import type { Env } from "../../env";
 import { nextRecurring, oneTimeFireAt } from "./time";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, and, gt, lte } from "drizzle-orm";
 import type { Notification, NotificationInput, Profile, UpdateInput } from "./types";
+import { logger } from "../../lib/logger";
+import { createBot } from "../../telegram/bot";
 
 type Schema = { notifications: typeof notifications };
+
+const LOOKBACK_MS = 5 * 60_000;
 
 export class UserSchedulerDO extends DurableObject<Env> {
   storage: DurableObjectStorage;
@@ -140,6 +144,72 @@ export class UserSchedulerDO extends DurableObject<Env> {
     return true;
   }
 
+  async alarm(): Promise<void> {
+    try {
+      await this.fire();
+    } catch (err) {
+      logger.error("alarm error", { error: String(err) });
+      await this.storage.setAlarm(Date.now() + 60_000);
+    }
+  }
+
+  private async fire(): Promise<void> {
+    const profile = await this.profile();
+    if (!profile) return;
+
+    const now = Date.now();
+    const due = await this.db.select().from(notifications).where(
+      and(
+        lte(notifications.next_fire_at, now),
+        gt(notifications.next_fire_at, now - LOOKBACK_MS),
+      ),
+    );
+
+    if (due.length === 0) {
+      await this.refreshAlarm();
+      return;
+    }
+
+    const bot = createBot(this.env);
+    let retryAfterMs: number | null = null;
+
+    await Promise.all(due.map(async (n) => {
+      try {
+        await bot.api.sendMessage(
+          profile.chat_id,
+          await decryptMessage(this.env, n.message),
+          { reply_markup: { inline_keyboard: [[{ text: "✅", callback_data: `done:${n.id}` }]] } },
+        );
+        if (n.kind === "one_time") {
+          await this.db.delete(notifications).where(eq(notifications.id, n.id));
+        } else {
+          await this.db
+            .update(notifications)
+            .set({
+              last_sent_at: now,
+              next_fire_at: nextRecurring(n.time, n.timezone, n.weekdays!, now),
+            })
+            .where(eq(notifications.id, n.id));
+        }
+        logger.event(this.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "ok" });
+      } catch (err) {
+        if (is429(err)) {
+          retryAfterMs = Math.max(retryAfterMs ?? 0, parseRetryAfter(err) * 1000);
+          logger.event(this.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "rate_limited" });
+        } else {
+          logger.event(this.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "error" });
+          throw err;
+        }
+      }
+    }));
+
+    if (retryAfterMs !== null) {
+      await this.storage.setAlarm(Date.now() + retryAfterMs);
+    } else {
+      await this.refreshAlarm();
+    }
+  }
+
   private async refreshAlarm(): Promise<void> {
     const [row] = await this.db
       .select({ min: sql<number | null>`MIN(${notifications.next_fire_at})` })
@@ -166,4 +236,17 @@ export class UserSchedulerDO extends DurableObject<Env> {
     if (r.kind === "recurring") base.days = bitmaskToDays(r.weekdays!);
     return base;
   }
+}
+
+function is429(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as Record<string, unknown>;
+  return e.error_code === 429 || (typeof e.message === "string" && (e.message as string).includes("Too Many Requests"));
+}
+
+function parseRetryAfter(err: unknown): number {
+  if (!err || typeof err !== "object") return 30;
+  const e = err as Record<string, unknown>;
+  const params = e.parameters as { retry_after?: number } | undefined;
+  return params?.retry_after ?? 30;
 }

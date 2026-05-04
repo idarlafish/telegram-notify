@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { env, runInDurableObject } from "cloudflare:test";
+import { eq } from "drizzle-orm";
+import { notifications } from "../src/scheduler/user-do/schema";
 
 declare module "cloudflare:test" {
   interface ProvidedEnv {
@@ -143,5 +145,49 @@ describe("UserSchedulerDO — delete", () => {
     const s = stub(41);
     await s.bind(41);
     expect(await s.delete("00000000-0000-0000-0000-000000000000")).toBe(false);
+  });
+});
+
+type DOInternals = {
+  db: import("drizzle-orm/durable-sqlite").DrizzleSqliteDODatabase<{ notifications: typeof notifications }>;
+  alarm: () => Promise<void>;
+};
+
+async function forceFire(userId: number): Promise<void> {
+  const id = env.USER_SCHEDULER.idFromName(`user:${userId}`);
+  await runInDurableObject(env.USER_SCHEDULER.get(id), async (instance) => {
+    const i = instance as unknown as DOInternals;
+    await i.db.update(notifications).set({ next_fire_at: Date.now() - 1000 });
+    await i.alarm();
+  });
+}
+
+describe("UserSchedulerDO — alarm", () => {
+  it("fires a single one-time notification and deletes the row", async () => {
+    const s = stub(50);
+    await s.bind(50);
+    await s.create({
+      kind: "one_time", time: "12:00", timezone: "Europe/Helsinki",
+      message: "ping", date: "2099-01-01",
+    });
+    await forceFire(50);
+    expect(await s.list()).toEqual([]);
+  });
+
+  it("fires multiple due rows in one alarm and reschedules recurring", async () => {
+    const s = stub(51);
+    await s.bind(51);
+    await s.create({
+      kind: "recurring", time: "10:00", timezone: "Europe/Helsinki",
+      message: "a", days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+    });
+    await s.create({
+      kind: "recurring", time: "10:00", timezone: "Europe/Helsinki",
+      message: "b", days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+    });
+    await forceFire(51);
+    const after = await s.list();
+    expect(after).toHaveLength(2);
+    for (const r of after) expect(r.next_fire_at).toBeGreaterThan(Date.now());
   });
 });
