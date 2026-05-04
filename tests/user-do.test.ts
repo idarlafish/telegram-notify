@@ -43,3 +43,10 @@ describe("UserSchedulerDO — profile lifecycle", () => {
     expect(await s.profile()).toBeNull();
   });
 });
+
+describe("UserSchedulerDO — list", () => {
+  it("returns [] when DO is empty", async () => {
+    const items = await stub(10).list();
+    expect(items).toEqual([]);
+  });
+});
