@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useMatch, useNavigate } from "@tanstack/react-router";
 import { useReminderForm } from "../lib/use-reminder-form";
 import { fieldError } from "../lib/field-error";
@@ -15,9 +16,15 @@ export default function FormPage() {
   const editMatch = useMatch({ from: "/edit/$id", shouldThrow: false });
   const editId = editMatch?.params.id;
   const { form, isEdit, handleDelete } = useReminderForm(editId);
+  const handleMainButtonClick = useCallback(() => {
+    form.handleSubmit();
+  }, [form]);
+  const handleBackClick = useCallback(() => {
+    navigate({ to: "/" });
+  }, [navigate]);
 
-  useMainButton(isEdit ? "Save" : "Create Reminder", () => form.handleSubmit(), [isEdit]);
-  useBackButton(() => navigate({ to: "/" }));
+  useMainButton(isEdit ? "Save" : "Create Reminder", handleMainButtonClick);
+  useBackButton(handleBackClick);
 
   return (
     <form

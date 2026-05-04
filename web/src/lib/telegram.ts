@@ -15,7 +15,7 @@ export function initTelegram(): void {
   tg?.expand();
 }
 
-export function useMainButton(text: string, onClick: () => void, deps: unknown[]) {
+export function useMainButton(text: string, onClick: () => void) {
   useEffect(() => {
     if (!tg) return;
     tg.MainButton.setText(text);
@@ -24,8 +24,7 @@ export function useMainButton(text: string, onClick: () => void, deps: unknown[]
     return () => {
       tg.MainButton.offClick(onClick);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [text, onClick]);
 }
 
 export function useBackButton(onClick: () => void) {
