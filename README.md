@@ -9,17 +9,26 @@ Telegram reminder bot with a Telegram Mini App.
 ![Runtime](https://img.shields.io/badge/runtime-Cloudflare%20Workers-f38020)
 ![TypeScript](https://img.shields.io/badge/language-TypeScript-3178c6)
 
-[`t.me/sleepy_notify_bot`](https://t.me/sleepy_notify_bot)
-
 </div>
 
 ## Overview
 
-`telegram-notify` supports:
+A self-hosted reminder bot for Telegram, deployed as a single Cloudflare Worker.
 
-- recurring reminders (`daily` or custom weekday sets)
+**What it does:**
+
+- recurring reminders (daily or custom weekday sets)
 - one-time reminders
-- encrypted reminder content
+- a Telegram Mini App for managing them visually
+- AES-256-GCM encryption of reminder content at rest
+
+**Why this stack:**
+
+- **Telegram's Bot API has no scheduled messages** — the original constraint that made this project necessary. Any reminder bot has to run its own scheduler.
+- **Sub-second precision** — alarms fire from per-user Durable Objects, not a 30–90s polling cron
+- **Zero external dependencies** — Cloudflare Workers + Durable Objects + Telegram are the entire runtime. No Redis, no queue, no third-party scheduler
+- **Single atomic deploy** — backend, frontend (Mini App), and storage migrations ship together
+- **Fork-friendly** — designed to run on your own Cloudflare account and your own bot
 
 ## Architecture
 
@@ -90,14 +99,22 @@ sequenceDiagram
 ```bash
 bun install
 
+cp .env.example .env
+# fill in BOT_TOKEN, WEBHOOK_SECRET, MESSAGE_KEY, CLOUDFLARE_ACCOUNT_ID,
+# WEBHOOK_URL, VITE_PRIVACY_CONTACT_EMAIL — see .env.example for each.
+
+bunx wrangler login
 bunx wrangler secret put BOT_TOKEN
 bunx wrangler secret put WEBHOOK_SECRET
 bunx wrangler secret put MESSAGE_KEY
 
 bun run deploy
-bun run deploy:staging
-bun run set-webhook   # one-shot: registers the webhook URL with Telegram
+bun run set-webhook
 ```
+
+Generate a fresh `MESSAGE_KEY` with `openssl rand -base64 32`.
+
+For staging, fill the `STAGING_BOT_TOKEN` / `STAGING_WEBHOOK_SECRET` / `STAGING_MESSAGE_KEY` / `STAGING_WEBHOOK_URL` block in `.env`, push them with `--env staging`, then `bun run deploy:staging` and `bun run set-webhook:staging`.
 
 ## Local development
 
