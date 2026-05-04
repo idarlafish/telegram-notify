@@ -74,9 +74,8 @@ bun run deploy               # vite build → wrangler deploy (atomic, prod)
 
 bun run dev:staging          # wrangler dev against staging env
 bun run deploy:staging       # vite build → wrangler deploy (staging)
-bun run set-webhook[:staging]      # (re)register bot webhook URL
-bun run bot:set-commands[:staging] # register slash commands shown in Telegram
-bun run tail:staging               # tail staging worker logs
+bun run set-webhook[:staging]  # one-shot: register webhook URL with Telegram
+bun run tail:staging         # tail staging worker logs
 
 bunx drizzle-kit generate    # regenerate DO migrations after editing schema
 ```

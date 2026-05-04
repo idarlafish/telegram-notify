@@ -16,8 +16,7 @@ codebase.**
 The drift happens when:
 
 - `wrangler secret put WEBHOOK_SECRET` was run with one value, and
-- `set-webhook` script (which reads from `.env`) registered a different value
-  with Telegram.
+- the `setWebhook` Bot API call registered a different value with Telegram.
 
 **Diagnose:** `wrangler tail` and trigger an action — if you see
 `{"level":"warn","message":"webhook secret mismatch","received_len":N,"expected_len":M}`,
@@ -32,7 +31,7 @@ set -a && source .env && set +a
 printf '%s' "$WEBHOOK_SECRET" | bunx wrangler secret put WEBHOOK_SECRET
 ```
 
-No need to re-run `set-webhook` if you sync the Worker side; Telegram already
+No need to re-call `setWebhook` if you sync the Worker side; Telegram already
 has the right value. Verify by triggering one update and watching tail for
 `webhook received` instead of `webhook secret mismatch`.
 
@@ -73,18 +72,38 @@ config, the order of operations is:
    - **Telegram client cache of bot profile data** can persist for minutes
      after server changes. Force-quit the app + reopen.
 
-## Slash-command suggestions
+## Webhook registration (one-shot)
 
-The list shown when a user taps `/` in the chat is configured via
-`setMyCommands`. Run `bun run bot:set-commands` whenever you change the list
-in `scripts/set-commands.ts`. It's a one-shot bot-wide setting; no per-chat
-or per-user variants.
+The webhook URL + secret live on Telegram's side and survive every deploy. Run
+this only on first-time setup, when rotating `WEBHOOK_SECRET`, or when the URL
+changes:
+
+```bash
+bun run set-webhook              # production
+bun run set-webhook:staging      # staging
+```
+
+The script (`scripts/set-webhook.ts`) reads `BOT_TOKEN`/`WEBHOOK_SECRET` (or
+the `BOT_STAGING_TOKEN`/`STAGING_WEBHOOK_SECRET` pair) from `.env` and calls
+the Bot API's `setWebhook` once.
+
+## Slash-command menu (auto on cold start)
+
+The `/start` and `/stop` menu is registered by the Worker itself via
+`@grammyjs/commands`. Each cold isolate calls `setMyCommands` once on the
+first webhook delivery (`src/telegram/commands/index.ts`), then skips it for
+the rest of that isolate's lifetime. Telegram is idempotent on the call, so
+this is safe — but it does mean the *only* place command names + descriptions
+are defined is in `start.ts` and `stop.ts` (the second argument to
+`commands.command(name, description, handler)`).
+
+To change the menu: edit the description in those files and redeploy. Next
+cold start will sync the new list.
 
 ## Useful diagnostics
 
 ```bash
-bun run bot:set-commands   # re-register slash menu
-bun run set-webhook        # re-register webhook URL + secret
 bunx wrangler tail telegram-notify --format=pretty   # live Worker logs
 curl "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo"   # what Telegram thinks
+curl "https://api.telegram.org/bot$BOT_TOKEN/getMyCommands"    # registered command list
 ```

@@ -6,6 +6,7 @@
       "name": "telegram-notify",
       "dependencies": {
         "@grammyjs/auto-retry": "^2.0.2",
+        "@grammyjs/commands": "^1.3.2",
         "@grammyjs/types": "^3.25.0",
         "@hono/valibot-validator": "^0.6.1",
         "drizzle-orm": "^0.45.2",
@@ -47,7 +48,6 @@
         "@vitejs/plugin-react": "^5.0.0",
         "eslint-plugin-react-hooks": "^7.0.0",
         "jsdom": "^25.0.0",
-        "prettier": "^3.8.3",
         "typescript": "^5.9.0",
         "vite": "^7.0.0",
         "vitest": "^4.1.5",
@@ -208,6 +208,8 @@
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.7.1", "", { "dependencies": { "@eslint/core": "^1.2.1", "levn": "^0.4.1" } }, "sha512-rZAP3aVgB9ds9KOeUSL+zZ21hPmo8dh6fnIFwRQj5EAZl9gzR7wxYbYXYysAM8CTqGmUGyp2S4kUdV17MnGuWQ=="],
 
     "@grammyjs/auto-retry": ["@grammyjs/auto-retry@2.0.2", "", { "dependencies": { "debug": "^4.3.4" }, "peerDependencies": { "grammy": "^1.10.0" } }, "sha512-b4A4p5jlYDiQtW0c0FXYe11WMkYoiW+5rvOaDMCOk1h7Pu2SDl7B7gmFF8cthWCx2+M2nWLOsBxAgbBG4kKWYg=="],
+
+    "@grammyjs/commands": ["@grammyjs/commands@1.3.2", "", { "peerDependencies": { "grammy": "^1.17.1" } }, "sha512-cYqEV/bMcWrXy+8oI5bjxQPM3Hkgjc9QbbwKo7I23x+qMBFsiNDVIIbIH7Ma4nu/reqOUVxgAh5NPHEyYLZbNw=="],
 
     "@grammyjs/types": ["@grammyjs/types@3.26.0", "", {}, "sha512-jlnyfxfev/2o68HlvAGRocAXgdPPX5QabG7jZlbqC2r9DZyWBfzTlg+nu3O3Fy4EhgLWu28hZ/8wr7DsNamP9A=="],
 

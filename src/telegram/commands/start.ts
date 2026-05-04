@@ -1,11 +1,12 @@
+import type { CommandGroup } from "@grammyjs/commands";
+import type { Context } from "grammy";
 import { bindUser } from "../../services/user";
-import type { AppBot } from "../bot";
 import type { Env } from "../../env";
 
 const WELCOME = "👋 Welcome to sleepy-notify";
 
-export function registerStart(bot: AppBot, env: Env): void {
-  bot.command("start", async (ctx) => {
+export function registerStart(commands: CommandGroup<Context>, env: Env): void {
+  commands.command("start", "Begin or refresh your session", async (ctx) => {
     if (!ctx.from || !ctx.chat) return;
     await bindUser(env, ctx.from.id, ctx.chat.id);
 
