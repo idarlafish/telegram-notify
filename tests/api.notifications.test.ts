@@ -110,6 +110,16 @@ describe("POST /api/notifications", () => {
     expect(status).toBe(409);
     expect(body).toMatchObject({ error: "conflict", message: /limit \(50\)/ });
   });
+
+  it("400 when DO returns a past-date validation error across RPC boundary", async () => {
+    stubMethods.create.mockRejectedValue(new Error("one-time reminder must be in the future"));
+    const { status, body } = await call("POST", "/api/notifications", validBody);
+    expect(status).toBe(400);
+    expect(body).toEqual({
+      error: "past_date",
+      message: "one-time reminder must be in the future",
+    });
+  });
 });
 
 describe("PATCH /api/notifications/:id", () => {
