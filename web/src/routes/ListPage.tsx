@@ -21,7 +21,9 @@ export default function ListPage() {
   if (q.isLoading) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <Skeleton /><Skeleton /><Skeleton />
+        <Skeleton />
+        <Skeleton />
+        <Skeleton />
       </div>
     );
   }
@@ -29,7 +31,9 @@ export default function ListPage() {
     return (
       <div style={{ background: "rgba(255,0,0,0.08)", padding: 14, borderRadius: 8 }}>
         Could not load reminders.{" "}
-        <button onClick={() => q.refetch()} style={{ marginLeft: 8 }}>Retry</button>
+        <button onClick={() => q.refetch()} style={{ marginLeft: 8 }}>
+          Retry
+        </button>
       </div>
     );
   }
@@ -37,7 +41,9 @@ export default function ListPage() {
   if (items.length === 0) return <EmptyState />;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {items.map((n) => <ReminderCard key={n.id} n={n} />)}
+      {items.map((n) => (
+        <ReminderCard key={n.id} n={n} />
+      ))}
     </div>
   );
 }

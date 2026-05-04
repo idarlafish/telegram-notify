@@ -71,7 +71,7 @@ and either `setAlarm(min)` or `deleteAlarm()` if empty.
 ## Why no `user_id` column
 
 Each DO instance owns exactly one user's notifications. Adding a `user_id`
-would be redundant — the DO ID *is* the user identity. This is the architectural
+would be redundant — the DO ID _is_ the user identity. This is the architectural
 shift from the previous D1 design.
 
 ## Why no `date` column for one-time
@@ -129,7 +129,7 @@ const past = await this.ctx.storage.getBookmarkForTime(new Date("2026-05-01T08:0
 
 // Schedule a restore — applies on the DO's next session start.
 await this.ctx.storage.onNextSessionRestoreBookmark(past);
-await this.ctx.abort();   // restart this DO; comes back on the restored bookmark
+await this.ctx.abort(); // restart this DO; comes back on the restored bookmark
 ```
 
 Restore is per-DO (one user at a time). To restore an entire user's reminder

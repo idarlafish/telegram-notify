@@ -19,17 +19,23 @@ function periodOf(time: string): Period {
 
 function iconOf(period: Period): string {
   switch (period) {
-    case "morning": return sunriseUrl;
-    case "day":     return sunUrl;
-    case "evening": return sunsetUrl;
-    case "night":   return moonUrl;
+    case "morning":
+      return sunriseUrl;
+    case "day":
+      return sunUrl;
+    case "evening":
+      return sunsetUrl;
+    case "night":
+      return moonUrl;
   }
 }
 
 function summary(n: Notification): string {
   if (n.kind === "one_time") {
     const d = new Intl.DateTimeFormat("en-GB", {
-      timeZone: n.timezone, day: "numeric", month: "short",
+      timeZone: n.timezone,
+      day: "numeric",
+      month: "short",
     }).format(new Date(n.next_fire_at));
     return `Once on ${d}`;
   }
@@ -40,8 +46,11 @@ export function ReminderCard({ n }: { n: Notification }) {
   const navigate = useNavigate();
   const period = periodOf(n.time);
   return (
-    <div className={`gradient ${css.card}`} data-period={period}
-         onClick={() => navigate({ to: "/edit/$id", params: { id: n.id } })}>
+    <div
+      className={`gradient ${css.card}`}
+      data-period={period}
+      onClick={() => navigate({ to: "/edit/$id", params: { id: n.id } })}
+    >
       <img className={css.icon} src={iconOf(period)} alt="" />
       <div className={css.time}>{formatLocalTime(n.next_fire_at, n.timezone)}</div>
       <div className={css.message}>{n.message}</div>

@@ -13,6 +13,6 @@ if (!token) {
 const bot = new Bot(token);
 await bot.api.setMyCommands([
   { command: "start", description: "Begin or refresh your session" },
-  { command: "stop",  description: "Erase all your reminders and account data" },
+  { command: "stop", description: "Erase all your reminders and account data" },
 ]);
 console.log(`commands set${isStaging ? " (staging)" : ""}`);

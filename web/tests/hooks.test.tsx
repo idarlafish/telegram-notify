@@ -2,18 +2,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import {
-  useDeleteNotification,
-  useNotifications,
-  notificationsKey,
-} from "../src/api/hooks";
+import { useDeleteNotification, useNotifications, notificationsKey } from "../src/api/hooks";
 import type { Notification } from "../src/api/types";
 
 const SAMPLE: Notification[] = [
-  { id: "a", kind: "recurring", message: "x", time: "09:00", timezone: "UTC",
-    days: ["mon"], next_fire_at: 0, last_sent_at: null, created_at: 0 },
-  { id: "b", kind: "recurring", message: "y", time: "10:00", timezone: "UTC",
-    days: ["tue"], next_fire_at: 0, last_sent_at: null, created_at: 0 },
+  {
+    id: "a",
+    kind: "recurring",
+    message: "x",
+    time: "09:00",
+    timezone: "UTC",
+    days: ["mon"],
+    next_fire_at: 0,
+    last_sent_at: null,
+    created_at: 0,
+  },
+  {
+    id: "b",
+    kind: "recurring",
+    message: "y",
+    time: "10:00",
+    timezone: "UTC",
+    days: ["tue"],
+    next_fire_at: 0,
+    last_sent_at: null,
+    created_at: 0,
+  },
 ];
 
 function wrapper(client: QueryClient) {
@@ -41,13 +55,17 @@ describe("useDeleteNotification", () => {
       const url = input instanceof Request ? input.url : String(input);
       if (url.endsWith("/api/notifications") && methodOf(input) === "GET") {
         // After invalidation, return the list MINUS the deleted row.
-        return new Response(JSON.stringify({ items: SAMPLE.filter((n) => n.id !== "a") }), { status: 200 });
+        return new Response(JSON.stringify({ items: SAMPLE.filter((n) => n.id !== "a") }), {
+          status: 200,
+        });
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
     qc.setQueryData(notificationsKey, { items: SAMPLE });
 
     // Pre-prime so the "list" query is registered (otherwise invalidate is a no-op).
@@ -78,7 +96,9 @@ describe("useDeleteNotification", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
     qc.setQueryData(notificationsKey, { items: SAMPLE });
     renderHook(() => useNotifications(), { wrapper: wrapper(qc) });
 

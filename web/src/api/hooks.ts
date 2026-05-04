@@ -24,8 +24,7 @@ export function useCreateNotification() {
 export function useUpdateNotification() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: UpdateNotification }) =>
-      api.update(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateNotification }) => api.update(id, patch),
     onSuccess: () => qc.invalidateQueries({ queryKey: notificationsKey }),
   });
 }

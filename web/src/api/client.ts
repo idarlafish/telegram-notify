@@ -28,12 +28,13 @@ export const api = {
   },
   create: (body: CreateNotification) =>
     req<{ notification: Notification }>("/notifications", {
-      method: "POST", body: JSON.stringify(body),
+      method: "POST",
+      body: JSON.stringify(body),
     }),
   update: (id: string, patch: UpdateNotification) =>
     req<{ notification: Notification }>(`/notifications/${id}`, {
-      method: "PATCH", body: JSON.stringify(patch),
+      method: "PATCH",
+      body: JSON.stringify(patch),
     }),
-  remove: (id: string) =>
-    req<{ ok: true }>(`/notifications/${id}`, { method: "DELETE" }),
+  remove: (id: string) => req<{ ok: true }>(`/notifications/${id}`, { method: "DELETE" }),
 };

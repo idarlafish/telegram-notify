@@ -73,13 +73,13 @@ encryption, see [`docs/encryption.md`](docs/encryption.md).
 
 ## Stack
 
-| | |
-|---|---|
-| Runtime | Cloudflare Workers (single deploy) |
-| Storage | Per-user Durable Object SQLite (`drizzle-orm/durable-sqlite` + drizzle-kit) |
-| Backend | Hono, valibot, grammY, vitest + @cloudflare/vitest-pool-workers |
-| Frontend | React 19, Vite, TanStack Router/Query/Form, valibot |
-| Encryption | AES-256-GCM (Web Crypto), per-record IV |
+|            |                                                                             |
+| ---------- | --------------------------------------------------------------------------- |
+| Runtime    | Cloudflare Workers (single deploy)                                          |
+| Storage    | Per-user Durable Object SQLite (`drizzle-orm/durable-sqlite` + drizzle-kit) |
+| Backend    | Hono, valibot, grammY, vitest + @cloudflare/vitest-pool-workers             |
+| Frontend   | React 19, Vite, TanStack Router/Query/Form, valibot                         |
+| Encryption | AES-256-GCM (Web Crypto), per-record IV                                     |
 
 ## Layout
 
@@ -136,28 +136,28 @@ bun run dev        # wrangler dev on :8787 (DO + secrets)
 
 Vite proxies `/api`, `/telegram-webhook`, and `/health` to wrangler.
 For real Telegram testing, expose Vite via a Cloudflare Tunnel and register
-the tunnel URL on a *dev* bot (don't repoint the prod webhook).
+the tunnel URL on a _dev_ bot (don't repoint the prod webhook).
 
 ## API
 
 All requests authenticate via `Authorization: tma <initData>` header.
 Wire format speaks `days: WeekDay[]`; bitmasks live only in storage.
 
-| Method | Path | Body | Response |
-|---|---|---|---|
-| GET    | `/api/notifications`     | — | `{ items: Notification[] }` |
-| POST   | `/api/notifications`     | `{ kind, time, timezone, message, days?, date? }` (variant on `kind`) | `{ notification }` (201) |
-| PATCH  | `/api/notifications/:id` | partial of POST body | `{ notification }` |
-| DELETE | `/api/notifications/:id` | — | `{ ok: true }` |
-| GET    | `/health`                | — | `{ status: "ok" }` |
-| POST   | `/telegram-webhook`      | Telegram update (validated by `x-telegram-bot-api-secret-token`) | grammY response |
+| Method | Path                     | Body                                                                  | Response                    |
+| ------ | ------------------------ | --------------------------------------------------------------------- | --------------------------- |
+| GET    | `/api/notifications`     | —                                                                     | `{ items: Notification[] }` |
+| POST   | `/api/notifications`     | `{ kind, time, timezone, message, days?, date? }` (variant on `kind`) | `{ notification }` (201)    |
+| PATCH  | `/api/notifications/:id` | partial of POST body                                                  | `{ notification }`          |
+| DELETE | `/api/notifications/:id` | —                                                                     | `{ ok: true }`              |
+| GET    | `/health`                | —                                                                     | `{ status: "ok" }`          |
+| POST   | `/telegram-webhook`      | Telegram update (validated by `x-telegram-bot-api-secret-token`)      | grammY response             |
 
 ## Bot commands
 
-| Command | Effect |
-|---|---|
+| Command  | Effect                                                                                                                                 |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `/start` | Bind your `chat_id` to your `UserSchedulerDO` profile (idempotent). Clears stale per-chat menu overrides; removes old reply keyboards. |
-| `/stop` | `userDO.destroy()` — clears profile, deletes all rows, unsets the alarm. |
+| `/stop`  | `userDO.destroy()` — clears profile, deletes all rows, unsets the alarm.                                                               |
 
 ## Deployment + CI
 

@@ -2,7 +2,8 @@ import { PastDateError } from "../../lib/errors";
 
 function parseHHMM(time: string): { h: number; m: number } {
   const [hStr, mStr] = time.split(":");
-  const h = Number(hStr); const m = Number(mStr);
+  const h = Number(hStr);
+  const m = Number(mStr);
   if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 23 || m < 0 || m > 59) {
     throw new Error(`invalid time: ${time}`);
   }
@@ -11,8 +12,12 @@ function parseHHMM(time: string): { h: number; m: number } {
 
 function localParts(ms: number, timezone: string) {
   const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone, hour: "2-digit", minute: "2-digit", second: "2-digit",
-    weekday: "short", hour12: false,
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    weekday: "short",
+    hour12: false,
   });
   const parts = fmt.formatToParts(new Date(ms));
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
@@ -28,14 +33,20 @@ function localParts(ms: number, timezone: string) {
 // Earliest UTC ms ≥ fromMs at which `time` falls on a day whose bit is set in
 // `weekdays`, in `timezone`. Loops up to 7 days forward.
 export function nextRecurring(
-  time: string, timezone: string, weekdays: number, fromMs: number = Date.now(),
+  time: string,
+  timezone: string,
+  weekdays: number,
+  fromMs: number = Date.now(),
 ): number {
   const { h: targetH, m: targetM } = parseHHMM(time);
   const local = localParts(fromMs, timezone);
 
   let diffMin = (targetH - local.h) * 60 + (targetM - local.m);
   let dayOffset = 0;
-  if (diffMin <= 0) { diffMin += 24 * 60; dayOffset = 1; }
+  if (diffMin <= 0) {
+    diffMin += 24 * 60;
+    dayOffset = 1;
+  }
   let candidate = fromMs + diffMin * 60_000 - local.s * 1000;
   let weekdayIdx = (local.weekdayIdx + dayOffset) % 7;
 
@@ -51,22 +62,34 @@ export function nextRecurring(
 // in `timezone` at that instant. (Local-as-UTC) - (true UTC) = offset.
 function tzOffsetMs(at: number, timezone: string): number {
   const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone, hour12: false,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    timeZone: timezone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
   const parts = fmt.formatToParts(new Date(at));
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
   const localAsUtc = Date.UTC(
-    get("year"), get("month") - 1, get("day"),
-    get("hour") % 24, get("minute"), get("second"),
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour") % 24,
+    get("minute"),
+    get("second"),
   );
   return localAsUtc - at;
 }
 
 // Single UTC ms for a one-time reminder. Throws if past.
 export function oneTimeFireAt(
-  date: string, time: string, timezone: string, nowMs: number = Date.now(),
+  date: string,
+  time: string,
+  timezone: string,
+  nowMs: number = Date.now(),
 ): number {
   const { h, m } = parseHHMM(time);
   const dateMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);

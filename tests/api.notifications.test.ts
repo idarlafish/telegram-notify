@@ -105,9 +105,7 @@ describe("POST /api/notifications", () => {
   });
 
   it("409 when the per-user reminder cap is reached", async () => {
-    stubMethods.create.mockRejectedValue(
-      new ConflictError("reminder limit (50) reached"),
-    );
+    stubMethods.create.mockRejectedValue(new ConflictError("reminder limit (50) reached"));
     const { status, body } = await call("POST", "/api/notifications", validBody);
     expect(status).toBe(409);
     expect(body).toMatchObject({ error: "conflict", message: /limit \(50\)/ });

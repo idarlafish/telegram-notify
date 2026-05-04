@@ -12,11 +12,11 @@ describe("daysToBitmask / bitmaskToDays", () => {
     expect(daysToBitmask(["sun"])).toBe(64);
   });
   it("daily = 127", () => {
-    expect(daysToBitmask(["mon","tue","wed","thu","fri","sat","sun"])).toBe(127);
+    expect(daysToBitmask(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).toBe(127);
   });
   it("weekdays = 31, weekends = 96", () => {
-    expect(daysToBitmask(["mon","tue","wed","thu","fri"])).toBe(31);
-    expect(daysToBitmask(["sat","sun"])).toBe(96);
+    expect(daysToBitmask(["mon", "tue", "wed", "thu", "fri"])).toBe(31);
+    expect(daysToBitmask(["sat", "sun"])).toBe(96);
   });
   it("round-trips for all 127 valid masks", () => {
     for (let m = 1; m <= 127; m++) {
@@ -24,7 +24,7 @@ describe("daysToBitmask / bitmaskToDays", () => {
     }
   });
   it("bitmaskToDays returns days in canonical order Mon..Sun", () => {
-    expect(bitmaskToDays(0b0010101)).toEqual<WeekDay[]>(["mon","wed","fri"]);
+    expect(bitmaskToDays(0b0010101)).toEqual<WeekDay[]>(["mon", "wed", "fri"]);
   });
   it("rejects empty array", () => {
     expect(() => daysToBitmask([])).toThrow();

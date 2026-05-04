@@ -1,9 +1,5 @@
 import { userDoStub } from "../scheduler/user-do/stub";
-import type {
-  Notification,
-  NotificationInput,
-  UpdateInput,
-} from "../scheduler/user-do/types";
+import type { Notification, NotificationInput, UpdateInput } from "../scheduler/user-do/types";
 import type { Env } from "../env";
 
 export async function listNotifications(env: Env, telegramUserId: number): Promise<Notification[]> {

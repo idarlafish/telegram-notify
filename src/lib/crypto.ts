@@ -31,9 +31,7 @@ export async function importKeyFromBase64(b64: string, label = "key"): Promise<C
   if (raw.length !== 32) {
     throw new Error(`${label} must be 32 bytes (base64-encoded), got ${raw.length}`);
   }
-  return crypto.subtle.importKey(
-    "raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"],
-  );
+  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
 
 // Envelope: base64( IV (12 bytes) || ciphertext+auth-tag ).

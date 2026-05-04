@@ -12,10 +12,7 @@ export interface TelegramUser {
   username?: string;
 }
 
-export async function verifyInitData(
-  initData: string,
-  env: Env,
-): Promise<TelegramUser | null> {
+export async function verifyInitData(initData: string, env: Env): Promise<TelegramUser | null> {
   if (!initData) return null;
 
   const params = new URLSearchParams(initData);

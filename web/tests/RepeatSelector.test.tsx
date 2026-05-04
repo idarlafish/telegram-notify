@@ -5,7 +5,7 @@ import { RepeatSelector } from "../src/components/RepeatSelector";
 describe("RepeatSelector", () => {
   it("renders both tabs", () => {
     render(<RepeatSelector value="repeating" onChange={() => {}} />);
-    ["Repeating","One-time"].forEach((label) => {
+    ["Repeating", "One-time"].forEach((label) => {
       expect(screen.getByRole("radio", { name: label })).toBeInTheDocument();
     });
   });

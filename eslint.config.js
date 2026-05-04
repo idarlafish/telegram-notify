@@ -5,13 +5,7 @@ import tsParser from "@typescript-eslint/parser";
 
 export default [
   {
-    ignores: [
-      "**/node_modules/**",
-      "**/dist/**",
-      "**/.wrangler/**",
-      "migrations/**",
-      "web/**",
-    ],
+    ignores: ["**/node_modules/**", "**/dist/**", "**/.wrangler/**", "migrations/**", "web/**"],
   },
   {
     files: ["src/**/*.ts"],

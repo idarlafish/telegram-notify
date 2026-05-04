@@ -4,10 +4,7 @@ import { registerCommands } from "./commands/index";
 import { logger } from "../lib/logger";
 import type { Env } from "../env";
 
-export async function handleTelegramWebhook(
-  request: Request,
-  env: Env,
-): Promise<Response> {
+export async function handleTelegramWebhook(request: Request, env: Env): Promise<Response> {
   const sec = request.headers.get("x-telegram-bot-api-secret-token");
   if (sec !== env.WEBHOOK_SECRET) {
     logger.warn("webhook secret mismatch", {

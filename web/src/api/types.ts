@@ -13,13 +13,25 @@ export type Notification = {
 };
 
 export type CreateRecurring = {
-  kind: "recurring"; time: string; timezone: string; message: string; days: WeekDay[];
+  kind: "recurring";
+  time: string;
+  timezone: string;
+  message: string;
+  days: WeekDay[];
 };
 export type CreateOneTime = {
-  kind: "one_time"; time: string; timezone: string; message: string; date: string;
+  kind: "one_time";
+  time: string;
+  timezone: string;
+  message: string;
+  date: string;
 };
 export type CreateNotification = CreateRecurring | CreateOneTime;
 
 export type UpdateNotification = Partial<{
-  time: string; timezone: string; message: string; days: WeekDay[]; date: string;
+  time: string;
+  timezone: string;
+  message: string;
+  days: WeekDay[];
+  date: string;
 }>;

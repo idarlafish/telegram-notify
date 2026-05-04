@@ -3,7 +3,7 @@ import * as v from "valibot";
 const TimeSchema = v.pipe(v.string(), v.regex(/^([01]\d|2[0-3]):[0-5]\d$/, "use HH:MM"));
 const TimezoneSchema = v.pipe(v.string(), v.minLength(1));
 const MessageSchema = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(4000));
-const WeekDaySchema = v.picklist(["mon","tue","wed","thu","fri","sat","sun"]);
+const WeekDaySchema = v.picklist(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
 const DateSchema = v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD"));
 
 const RecurringCreate = v.object({

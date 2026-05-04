@@ -55,7 +55,9 @@ describe("UserSchedulerDO — list", () => {
 
 async function getAlarm(userId: number): Promise<number | null> {
   const id = env.USER_SCHEDULER.idFromName(`user:${userId}`);
-  return runInDurableObject(env.USER_SCHEDULER.get(id), async (_instance, ctx) => ctx.storage.getAlarm());
+  return runInDurableObject(env.USER_SCHEDULER.get(id), async (_instance, ctx) =>
+    ctx.storage.getAlarm(),
+  );
 }
 
 describe("UserSchedulerDO — create + refreshAlarm", () => {
@@ -149,7 +151,9 @@ describe("UserSchedulerDO — delete", () => {
 });
 
 type DOInternals = {
-  db: import("drizzle-orm/durable-sqlite").DrizzleSqliteDODatabase<{ notifications: typeof notifications }>;
+  db: import("drizzle-orm/durable-sqlite").DrizzleSqliteDODatabase<{
+    notifications: typeof notifications;
+  }>;
   alarm: () => Promise<void>;
 };
 
@@ -167,8 +171,11 @@ describe("UserSchedulerDO — alarm", () => {
     const s = stub(50);
     await s.bind(50);
     await s.create({
-      kind: "one_time", time: "12:00", timezone: "Europe/Helsinki",
-      message: "ping", date: "2099-01-01",
+      kind: "one_time",
+      time: "12:00",
+      timezone: "Europe/Helsinki",
+      message: "ping",
+      date: "2099-01-01",
     });
     await forceFire(50);
     expect(await s.list()).toEqual([]);
@@ -178,17 +185,22 @@ describe("UserSchedulerDO — alarm", () => {
     const s = stub(51);
     await s.bind(51);
     await s.create({
-      kind: "recurring", time: "10:00", timezone: "Europe/Helsinki",
-      message: "a", days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+      kind: "recurring",
+      time: "10:00",
+      timezone: "Europe/Helsinki",
+      message: "a",
+      days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
     });
     await s.create({
-      kind: "recurring", time: "10:00", timezone: "Europe/Helsinki",
-      message: "b", days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+      kind: "recurring",
+      time: "10:00",
+      timezone: "Europe/Helsinki",
+      message: "b",
+      days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
     });
     await forceFire(51);
     const after = await s.list();
     expect(after).toHaveLength(2);
     for (const r of after) expect(r.next_fire_at).toBeGreaterThan(Date.now());
   });
-
 });

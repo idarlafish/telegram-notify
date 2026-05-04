@@ -8,15 +8,15 @@ const epochMsDefault = sql`(CAST(strftime('%s', 'now') AS INTEGER) * 1000)`;
 export const notifications = sqliteTable(
   "notifications",
   {
-    id:           text("id").primaryKey(),
-    message:      text("message").notNull(),                 // ciphertext (AES-GCM, base64)
-    time:         text("time").notNull(),                    // "HH:MM" in user's tz
-    timezone:     text("timezone").notNull(),                // IANA
-    kind:         text("kind", { enum: ["one_time", "recurring"] }).notNull(),
-    weekdays:     integer("weekdays"),                       // bitmask Mon=1..Sun=64; non-null when recurring
-    next_fire_at: integer("next_fire_at").notNull(),         // UTC ms
+    id: text("id").primaryKey(),
+    message: text("message").notNull(), // ciphertext (AES-GCM, base64)
+    time: text("time").notNull(), // "HH:MM" in user's tz
+    timezone: text("timezone").notNull(), // IANA
+    kind: text("kind", { enum: ["one_time", "recurring"] }).notNull(),
+    weekdays: integer("weekdays"), // bitmask Mon=1..Sun=64; non-null when recurring
+    next_fire_at: integer("next_fire_at").notNull(), // UTC ms
     last_sent_at: integer("last_sent_at"),
-    created_at:   integer("created_at").notNull().default(epochMsDefault),
+    created_at: integer("created_at").notNull().default(epochMsDefault),
   },
   (t) => [
     index("idx_next_fire").on(t.next_fire_at),

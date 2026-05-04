@@ -2,21 +2,33 @@ import type { WeekDay } from "../api/types";
 
 export function formatLocalTime(ms: number, timezone: string): string {
   return new Intl.DateTimeFormat("en-GB", {
-    timeZone: timezone, hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
   }).format(new Date(ms));
 }
 
 const SHORT: Record<WeekDay, string> = {
-  mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
+  mon: "Mon",
+  tue: "Tue",
+  wed: "Wed",
+  thu: "Thu",
+  fri: "Fri",
+  sat: "Sat",
+  sun: "Sun",
 };
-const ORDER: readonly WeekDay[] = ["mon","tue","wed","thu","fri","sat","sun"];
+const ORDER: readonly WeekDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 export function daysSummary(days: readonly WeekDay[]): string {
   const set = new Set(days);
   if (set.size === 7) return "Daily";
-  if (set.size === 5 && ["mon","tue","wed","thu","fri"].every((d) => set.has(d as WeekDay))) return "Weekdays";
-  if (set.size === 2 && ["sat","sun"].every((d) => set.has(d as WeekDay))) return "Weekends";
-  return ORDER.filter((d) => set.has(d)).map((d) => SHORT[d]).join(", ");
+  if (set.size === 5 && ["mon", "tue", "wed", "thu", "fri"].every((d) => set.has(d as WeekDay)))
+    return "Weekdays";
+  if (set.size === 2 && ["sat", "sun"].every((d) => set.has(d as WeekDay))) return "Weekends";
+  return ORDER.filter((d) => set.has(d))
+    .map((d) => SHORT[d])
+    .join(", ");
 }
 
 export function countdownText(targetMs: number, nowMs: number = Date.now()): string {

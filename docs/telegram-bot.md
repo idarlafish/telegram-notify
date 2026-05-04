@@ -14,6 +14,7 @@ no handler activity. **It is the single most-confusing failure mode in this
 codebase.**
 
 The drift happens when:
+
 - `wrangler secret put WEBHOOK_SECRET` was run with one value, and
 - `set-webhook` script (which reads from `.env`) registered a different value
   with Telegram.
@@ -40,11 +41,11 @@ has the right value. Verify by triggering one update and watching tail for
 Users can see up to three different "open the app" entry points on a Telegram
 bot, and they're configured in different places:
 
-| Entry point | Visible as | Where set | Bot API method |
-|---|---|---|---|
-| **Per-chat menu button** | The ≡ icon at bottom-left of chat input, for *one specific user* | `bot.api.setChatMenuButton({ chat_id, menu_button })` | `setChatMenuButton` with `chat_id` |
-| **Bot-wide default menu button** | Same ≡ icon, for *all users* who don't have a per-chat override | `bot.api.setChatMenuButton({ menu_button })` (no `chat_id`) | `setChatMenuButton` |
-| **Profile-level "Open App"** | Prominent button on the bot's profile card, also `t.me/<bot>/<app>` deep links | **@BotFather only** — `/myapps` or `Bot Settings → Configure Mini App` | none — read-only via `getMe.has_main_web_app` |
+| Entry point                      | Visible as                                                                     | Where set                                                              | Bot API method                                |
+| -------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------- |
+| **Per-chat menu button**         | The ≡ icon at bottom-left of chat input, for _one specific user_               | `bot.api.setChatMenuButton({ chat_id, menu_button })`                  | `setChatMenuButton` with `chat_id`            |
+| **Bot-wide default menu button** | Same ≡ icon, for _all users_ who don't have a per-chat override                | `bot.api.setChatMenuButton({ menu_button })` (no `chat_id`)            | `setChatMenuButton`                           |
+| **Profile-level "Open App"**     | Prominent button on the bot's profile card, also `t.me/<bot>/<app>` deep links | **@BotFather only** — `/myapps` or `Bot Settings → Configure Mini App` | none — read-only via `getMe.has_main_web_app` |
 
 **Per-chat overrides bot-wide.** That's why `src/telegram/commands/start.ts`
 explicitly resets the per-chat menu to `default` — the old sleepy-notify

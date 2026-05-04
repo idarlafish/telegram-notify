@@ -10,10 +10,18 @@ describe("formatLocalTime", () => {
 });
 
 describe("daysSummary", () => {
-  it("daily", () => { expect(daysSummary(["mon","tue","wed","thu","fri","sat","sun"])).toBe("Daily"); });
-  it("weekdays", () => { expect(daysSummary(["mon","tue","wed","thu","fri"])).toBe("Weekdays"); });
-  it("weekends", () => { expect(daysSummary(["sat","sun"])).toBe("Weekends"); });
-  it("custom three days", () => { expect(daysSummary(["mon","wed","fri"])).toBe("Mon, Wed, Fri"); });
+  it("daily", () => {
+    expect(daysSummary(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).toBe("Daily");
+  });
+  it("weekdays", () => {
+    expect(daysSummary(["mon", "tue", "wed", "thu", "fri"])).toBe("Weekdays");
+  });
+  it("weekends", () => {
+    expect(daysSummary(["sat", "sun"])).toBe("Weekends");
+  });
+  it("custom three days", () => {
+    expect(daysSummary(["mon", "wed", "fri"])).toBe("Mon, Wed, Fri");
+  });
 });
 
 describe("countdownText", () => {

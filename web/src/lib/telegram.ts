@@ -21,7 +21,9 @@ export function useMainButton(text: string, onClick: () => void, deps: unknown[]
     tg.MainButton.setText(text);
     tg.MainButton.onClick(onClick);
     tg.MainButton.show();
-    return () => { tg.MainButton.offClick(onClick); };
+    return () => {
+      tg.MainButton.offClick(onClick);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }
@@ -31,7 +33,10 @@ export function useBackButton(onClick: () => void) {
     if (!tg) return;
     tg.BackButton.onClick(onClick);
     tg.BackButton.show();
-    return () => { tg.BackButton.offClick(onClick); tg.BackButton.hide(); };
+    return () => {
+      tg.BackButton.offClick(onClick);
+      tg.BackButton.hide();
+    };
   }, [onClick]);
 }
 

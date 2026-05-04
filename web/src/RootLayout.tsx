@@ -4,7 +4,9 @@ import { initTelegram, tg } from "./lib/telegram";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
-  static getDerivedStateFromError(error: Error) { return { error }; }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info);
     tg?.showAlert("Something went wrong");
@@ -18,6 +20,12 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 export default function RootLayout() {
-  useEffect(() => { initTelegram(); }, []);
-  return <ErrorBoundary><Outlet /></ErrorBoundary>;
+  useEffect(() => {
+    initTelegram();
+  }, []);
+  return (
+    <ErrorBoundary>
+      <Outlet />
+    </ErrorBoundary>
+  );
 }

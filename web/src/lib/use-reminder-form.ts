@@ -12,7 +12,10 @@ import { ALL_DAYS, apiRowToForm, formToApiBody } from "../api/map";
 import { getTimezone, haptic } from "./telegram";
 
 const DEFAULTS: ReminderForm = {
-  time: "09:00", repeat: "repeating", days: [...ALL_DAYS], message: "",
+  time: "09:00",
+  repeat: "repeating",
+  days: [...ALL_DAYS],
+  message: "",
   timezone: getTimezone(),
 };
 
@@ -36,7 +39,7 @@ export function useReminderForm(editId: string | undefined) {
       try {
         const body = formToApiBody(value);
         if (isEdit && editId) await update.mutateAsync({ id: editId, patch: body });
-        else                   await create.mutateAsync(body);
+        else await create.mutateAsync(body);
         haptic("success");
         navigate({ to: "/" });
       } catch (e) {

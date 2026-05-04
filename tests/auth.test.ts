@@ -30,9 +30,7 @@ async function signInitData(params: Record<string, string>): Promise<string> {
     ["sign"],
   );
   const sig = await crypto.subtle.sign("HMAC", verifyKey, enc.encode(dataCheck));
-  const hash = [...new Uint8Array(sig)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  const hash = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 
   return new URLSearchParams({ ...params, hash }).toString();
 }

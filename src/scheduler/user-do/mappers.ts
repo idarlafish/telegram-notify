@@ -1,6 +1,6 @@
 export type WeekDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
-const ORDER: readonly WeekDay[] = ["mon","tue","wed","thu","fri","sat","sun"] as const;
+const ORDER: readonly WeekDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 export function daysToBitmask(days: readonly WeekDay[]): number {
   if (days.length === 0) throw new Error("days must be non-empty");

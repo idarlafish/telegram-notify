@@ -12,8 +12,10 @@
           var tg = window.Telegram && window.Telegram.WebApp;
           if (!tg || !tg.initData) return;
           window.__notificationsPromise = fetch("/api/notifications", {
-            headers: { Authorization: "tma " + tg.initData }
-          }).then(function (r) { return r.ok ? r.json() : Promise.reject(r); });
+            headers: { Authorization: "tma " + tg.initData },
+          }).then(function (r) {
+            return r.ok ? r.json() : Promise.reject(r);
+          });
         } catch (e) {}
       })();
     </script>

@@ -55,9 +55,10 @@ export class UserSchedulerDO extends DurableObject<Env> {
 
   async create(input: NotificationInput): Promise<Notification> {
     const id = crypto.randomUUID();
-    const nextFireAt = input.kind === "recurring"
-      ? nextRecurring(input.time, input.timezone, daysToBitmask(input.days))
-      : oneTimeFireAt(input.date, input.time, input.timezone);
+    const nextFireAt =
+      input.kind === "recurring"
+        ? nextRecurring(input.time, input.timezone, daysToBitmask(input.days))
+        : oneTimeFireAt(input.date, input.time, input.timezone);
     const ciphertext = await encryptMessage(this.env, input.message);
 
     await this.db.insert(notifications).values({
@@ -87,31 +88,44 @@ export class UserSchedulerDO extends DurableObject<Env> {
   }
 
   async update(id: string, patch: UpdateInput): Promise<Notification | null> {
-    const [cur] = await this.db.select().from(notifications).where(eq(notifications.id, id)).limit(1);
+    const [cur] = await this.db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.id, id))
+      .limit(1);
     if (!cur) return null;
 
     const currentMessage = await decryptMessage(this.env, cur.message);
-    const merged = (cur.kind === "recurring"
-      ? {
-          kind: "recurring" as const,
-          time: patch.time ?? cur.time,
-          timezone: patch.timezone ?? cur.timezone,
-          message: patch.message ?? currentMessage,
-          days: patch.days ?? bitmaskToDays(cur.weekdays!),
-        }
-      : {
-          kind: "one_time" as const,
-          time: patch.time ?? cur.time,
-          timezone: patch.timezone ?? cur.timezone,
-          message: patch.message ?? currentMessage,
-          date: patch.date ?? new Intl.DateTimeFormat("en-CA", {
-            timeZone: cur.timezone, year: "numeric", month: "2-digit", day: "2-digit",
-          }).format(new Date(cur.next_fire_at)),
-        }) satisfies NotificationInput;
+    const merged = (
+      cur.kind === "recurring"
+        ? {
+            kind: "recurring" as const,
+            time: patch.time ?? cur.time,
+            timezone: patch.timezone ?? cur.timezone,
+            message: patch.message ?? currentMessage,
+            days: patch.days ?? bitmaskToDays(cur.weekdays!),
+          }
+        : {
+            kind: "one_time" as const,
+            time: patch.time ?? cur.time,
+            timezone: patch.timezone ?? cur.timezone,
+            message: patch.message ?? currentMessage,
+            date:
+              patch.date ??
+              new Intl.DateTimeFormat("en-CA", {
+                timeZone: cur.timezone,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              }).format(new Date(cur.next_fire_at)),
+          }
+    ) satisfies NotificationInput;
 
     const recompute =
-      patch.time !== undefined || patch.timezone !== undefined ||
-      patch.days !== undefined || patch.date !== undefined;
+      patch.time !== undefined ||
+      patch.timezone !== undefined ||
+      patch.days !== undefined ||
+      patch.date !== undefined;
 
     const updateValues: Record<string, unknown> = {
       time: merged.time,
@@ -120,9 +134,10 @@ export class UserSchedulerDO extends DurableObject<Env> {
     };
     if (merged.kind === "recurring") updateValues.weekdays = daysToBitmask(merged.days);
     if (recompute) {
-      updateValues.next_fire_at = merged.kind === "recurring"
-        ? nextRecurring(merged.time, merged.timezone, daysToBitmask(merged.days))
-        : oneTimeFireAt(merged.date, merged.time, merged.timezone);
+      updateValues.next_fire_at =
+        merged.kind === "recurring"
+          ? nextRecurring(merged.time, merged.timezone, daysToBitmask(merged.days))
+          : oneTimeFireAt(merged.date, merged.time, merged.timezone);
     }
 
     const [updated] = await this.db
@@ -137,7 +152,11 @@ export class UserSchedulerDO extends DurableObject<Env> {
   }
 
   async delete(id: string): Promise<boolean> {
-    const [exists] = await this.db.select({ id: notifications.id }).from(notifications).where(eq(notifications.id, id)).limit(1);
+    const [exists] = await this.db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(eq(notifications.id, id))
+      .limit(1);
     if (!exists) return false;
     await this.db.delete(notifications).where(eq(notifications.id, id));
     await this.refreshAlarm();
@@ -158,12 +177,15 @@ export class UserSchedulerDO extends DurableObject<Env> {
     if (!profile) return;
 
     const now = Date.now();
-    const due = await this.db.select().from(notifications).where(
-      and(
-        lte(notifications.next_fire_at, now),
-        gt(notifications.next_fire_at, now - LOOKBACK_MS),
-      ),
-    );
+    const due = await this.db
+      .select()
+      .from(notifications)
+      .where(
+        and(
+          lte(notifications.next_fire_at, now),
+          gt(notifications.next_fire_at, now - LOOKBACK_MS),
+        ),
+      );
 
     if (due.length === 0) {
       await this.refreshAlarm();
@@ -173,35 +195,39 @@ export class UserSchedulerDO extends DurableObject<Env> {
     const bot = createBot(this.env);
     let retryAfterMs: number | null = null;
 
-    await Promise.all(due.map(async (n) => {
-      try {
-        await bot.api.sendMessage(
-          profile.chat_id,
-          await decryptMessage(this.env, n.message),
-          { reply_markup: { inline_keyboard: [[{ text: "✅", callback_data: `done:${n.id}` }]] } },
-        );
-        if (n.kind === "one_time") {
-          await this.db.delete(notifications).where(eq(notifications.id, n.id));
-        } else {
-          await this.db
-            .update(notifications)
-            .set({
-              last_sent_at: now,
-              next_fire_at: nextRecurring(n.time, n.timezone, n.weekdays!, now),
-            })
-            .where(eq(notifications.id, n.id));
+    await Promise.all(
+      due.map(async (n) => {
+        try {
+          await bot.api.sendMessage(profile.chat_id, await decryptMessage(this.env, n.message), {
+            reply_markup: { inline_keyboard: [[{ text: "✅", callback_data: `done:${n.id}` }]] },
+          });
+          if (n.kind === "one_time") {
+            await this.db.delete(notifications).where(eq(notifications.id, n.id));
+          } else {
+            await this.db
+              .update(notifications)
+              .set({
+                last_sent_at: now,
+                next_fire_at: nextRecurring(n.time, n.timezone, n.weekdays!, now),
+              })
+              .where(eq(notifications.id, n.id));
+          }
+          logger.event(this.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "ok" });
+        } catch (err) {
+          if (is429(err)) {
+            retryAfterMs = Math.max(retryAfterMs ?? 0, parseRetryAfter(err) * 1000);
+            logger.event(this.env, "alarm_fire", {
+              id: n.id,
+              kind: n.kind,
+              outcome: "rate_limited",
+            });
+          } else {
+            logger.event(this.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "error" });
+            throw err;
+          }
         }
-        logger.event(this.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "ok" });
-      } catch (err) {
-        if (is429(err)) {
-          retryAfterMs = Math.max(retryAfterMs ?? 0, parseRetryAfter(err) * 1000);
-          logger.event(this.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "rate_limited" });
-        } else {
-          logger.event(this.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "error" });
-          throw err;
-        }
-      }
-    }));
+      }),
+    );
 
     if (retryAfterMs !== null) {
       await this.storage.setAlarm(Date.now() + retryAfterMs);
@@ -241,7 +267,10 @@ export class UserSchedulerDO extends DurableObject<Env> {
 function is429(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const e = err as Record<string, unknown>;
-  return e.error_code === 429 || (typeof e.message === "string" && (e.message as string).includes("Too Many Requests"));
+  return (
+    e.error_code === 429 ||
+    (typeof e.message === "string" && (e.message as string).includes("Too Many Requests"))
+  );
 }
 
 function parseRetryAfter(err: unknown): number {

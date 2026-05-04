@@ -58,8 +58,8 @@ describe("decryptMessage — OLD_MESSAGE_KEY fallback (rotation window)", () => 
   it("rejects malformed key at import time (label appears in error)", async () => {
     // Test importKeyFromBase64 directly so we bypass the module-level
     // `cachedCurrent` from previous tests in this file.
-    await expect(
-      importKeyFromBase64("dGhpcy1pcy10b28tc2hvcnQ=", "MESSAGE_KEY"),
-    ).rejects.toThrow(/MESSAGE_KEY.*32 bytes/);
+    await expect(importKeyFromBase64("dGhpcy1pcy10b28tc2hvcnQ=", "MESSAGE_KEY")).rejects.toThrow(
+      /MESSAGE_KEY.*32 bytes/,
+    );
   });
 });

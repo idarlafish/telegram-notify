@@ -4,10 +4,21 @@
   padding: 8px 0 64px;
   line-height: 1.55;
 }
-.page h1 { font-size: 24px; margin-bottom: 4px; }
-.page h2 { font-size: 17px; margin: 28px 0 8px; }
-.page p, .page ul { margin: 0 0 12px; }
-.page ul { padding-left: 22px; }
+.page h1 {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+.page h2 {
+  font-size: 17px;
+  margin: 28px 0 8px;
+}
+.page p,
+.page ul {
+  margin: 0 0 12px;
+}
+.page ul {
+  padding-left: 22px;
+}
 .page code {
   background: rgba(127, 127, 127, 0.15);
   padding: 1px 6px;
