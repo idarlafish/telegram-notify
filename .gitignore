@@ -120,3 +120,6 @@ dist
 docs/superpowers/
 web/dist/
 TODO.md
+
+# IDE
+.idea
