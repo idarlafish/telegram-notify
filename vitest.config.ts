@@ -1,11 +1,36 @@
+import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
-// Pure unit tests of pure functions (computeNextFireAt, verifyInitData via Web
-// Crypto). No Worker runtime needed — node env is fastest and has crypto.subtle
-// since Node 19.
 export default defineConfig({
   test: {
-    environment: "node",
-    include: ["tests/**/*.test.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          environment: "node",
+          include: ["tests/**/*.test.ts"],
+          exclude: ["tests/user-do.test.ts"],
+        },
+      },
+      {
+        extends: true,
+        plugins: [
+          cloudflareTest({
+            wrangler: { configPath: "./wrangler.toml" },
+            miniflare: {
+              bindings: {
+                MESSAGE_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                BOT_TOKEN: "X:Y",
+              },
+            },
+          }),
+        ],
+        test: {
+          name: "workers",
+          include: ["tests/user-do.test.ts"],
+        },
+      },
+    ],
   },
 });
