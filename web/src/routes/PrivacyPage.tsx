@@ -68,7 +68,15 @@ export default function PrivacyPage() {
           <strong>Delete a single reminder:</strong> tap it in the Mini App, then Delete.
         </li>
         <li>
-          <strong>Questions or requests:</strong> <a href="mailto:idar.dev@pm.me">idar.dev@pm.me</a>
+          <strong>Questions or requests:</strong>{" "}
+          {(() => {
+            const email = import.meta.env.VITE_PRIVACY_CONTACT_EMAIL;
+            return email ? (
+              <a href={`mailto:${email}`}>{email}</a>
+            ) : (
+              <span>[CONFIGURE_ME — set VITE_PRIVACY_CONTACT_EMAIL]</span>
+            );
+          })()}
           .
         </li>
       </ul>
