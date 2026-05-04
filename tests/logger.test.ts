@@ -1,12 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { logger } from "../src/lib/logger";
 
-// Tail-worker filters by Cloudflare tail-event `log.level`, which reflects the
-// console method we called — not a JSON field inside the payload. If
-// logger.error routes through console.log, tail-worker drops it silently. This
-// suite locks in the level → console-method mapping so that regression can't
-// recur.
-
 describe("logger", () => {
   let logSpy: ReturnType<typeof vi.spyOn>;
   let warnSpy: ReturnType<typeof vi.spyOn>;
@@ -42,7 +36,7 @@ describe("logger", () => {
     expect(payload).toMatchObject({ level: "warn", message: "careful" });
   });
 
-  it("error uses console.error — tail-worker filter depends on this", () => {
+  it("error uses console.error", () => {
     logger.error("boom", { id: "abc" });
     expect(errorSpy).toHaveBeenCalledOnce();
     expect(logSpy).not.toHaveBeenCalled();

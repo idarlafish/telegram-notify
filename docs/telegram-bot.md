@@ -7,16 +7,17 @@ The Worker serves a single bot, **`@sleepy_notify_bot`**. `BOT_TOKEN` lives in `
 When a webhook POST arrives, the Worker validates the
 `x-telegram-bot-api-secret-token` header against `env.WEBHOOK_SECRET` and
 returns **403 with no log line** on mismatch. Telegram queues updates for
-retry, the bot looks dead, and `wrangler tail` shows POSTs returning OK with
-no handler activity. **It is the single most-confusing failure mode in this
-codebase.**
+retry, the bot looks dead, and the Cloudflare dashboard logs show POSTs
+returning OK with no handler activity. **It is the single most-confusing
+failure mode in this codebase.**
 
 The drift happens when:
 
 - `wrangler secret put WEBHOOK_SECRET` was run with one value, and
 - the `setWebhook` Bot API call registered a different value with Telegram.
 
-**Diagnose:** `wrangler tail` and trigger an action — if you see
+**Diagnose:** trigger an action and check Worker logs in the Cloudflare
+dashboard — if you see
 `{"level":"warn","message":"webhook secret mismatch","received_len":N,"expected_len":M}`,
 the lengths give you the smoking gun. For URL drift, hit the Bot API directly:
 `curl "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo"`.
@@ -30,8 +31,8 @@ printf '%s' "$WEBHOOK_SECRET" | bunx wrangler secret put WEBHOOK_SECRET
 ```
 
 No need to re-call `setWebhook` if you sync the Worker side; Telegram already
-has the right value. Verify by triggering one update and watching tail for
-`webhook received` instead of `webhook secret mismatch`.
+has the right value. Verify by triggering one update and checking the
+dashboard logs for `webhook received` instead of `webhook secret mismatch`.
 
 ## The three menu-button-shaped buttons
 
@@ -101,7 +102,8 @@ cold start will sync the new list.
 ## Useful diagnostics
 
 ```bash
-bunx wrangler tail telegram-notify --format=pretty   # live Worker logs
 curl "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo"   # what Telegram thinks
 curl "https://api.telegram.org/bot$BOT_TOKEN/getMyCommands"    # registered command list
 ```
+
+For live Worker logs, use the Cloudflare dashboard's Workers → telegram-notify → Logs view.
