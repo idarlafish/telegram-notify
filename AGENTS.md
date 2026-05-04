@@ -18,7 +18,7 @@ Worker that serves both a Hono API and a React Mini App.
   DO namespace). Use `--env staging` for any wrangler/script command
   targeting staging. Secrets in `.env` (gitignored) AND in `wrangler secret`;
   keep them in sync. Staging keys (`STAGING_MESSAGE_KEY`,
-  `STAGING_WEBHOOK_SECRET`, `BOT_STAGING_TOKEN`) are distinct from prod values.
+  `STAGING_WEBHOOK_SECRET`, `STAGING_BOT_TOKEN`) are distinct from prod values.
 
 ## Hard rules
 

@@ -4,13 +4,13 @@ const args = process.argv.slice(2);
 const envFlag = args.indexOf("--env");
 const isStaging = envFlag !== -1 && args[envFlag + 1] === "staging";
 
-const token = isStaging ? process.env.BOT_STAGING_TOKEN : process.env.BOT_TOKEN;
+const token = isStaging ? process.env.STAGING_BOT_TOKEN : process.env.BOT_TOKEN;
 const secret = isStaging ? process.env.STAGING_WEBHOOK_SECRET : process.env.WEBHOOK_SECRET;
 const url = isStaging ? process.env.STAGING_WEBHOOK_URL : process.env.WEBHOOK_URL;
 
 if (!token || !secret || !url) {
   const required = isStaging
-    ? "BOT_STAGING_TOKEN, STAGING_WEBHOOK_SECRET, STAGING_WEBHOOK_URL"
+    ? "STAGING_BOT_TOKEN, STAGING_WEBHOOK_SECRET, STAGING_WEBHOOK_URL"
     : "BOT_TOKEN, WEBHOOK_SECRET, WEBHOOK_URL";
   console.error(`${required} must be set in .env`);
   process.exit(1);

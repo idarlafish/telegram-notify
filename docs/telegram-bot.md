@@ -84,7 +84,7 @@ bun run set-webhook:staging      # staging
 ```
 
 The script (`scripts/set-webhook.ts`) reads `BOT_TOKEN`/`WEBHOOK_SECRET` (or
-the `BOT_STAGING_TOKEN`/`STAGING_WEBHOOK_SECRET` pair) from `.env` and calls
+the `STAGING_BOT_TOKEN`/`STAGING_WEBHOOK_SECRET` pair) from `.env` and calls
 the Bot API's `setWebhook` once.
 
 ## Slash-command menu (auto on cold start)
