@@ -1,11 +1,11 @@
-import { PastDateError } from "../../lib/errors";
+import { PastDateError, ValidationError } from "../../lib/errors";
 
 function parseHHMM(time: string): { h: number; m: number } {
   const [hStr, mStr] = time.split(":");
   const h = Number(hStr);
   const m = Number(mStr);
   if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 23 || m < 0 || m > 59) {
-    throw new Error(`invalid time: ${time}`);
+    throw new ValidationError(`invalid time: ${time}`);
   }
   return { h, m };
 }
@@ -55,7 +55,7 @@ export function nextRecurring(
     candidate += 24 * 60 * 60_000;
     weekdayIdx = (weekdayIdx + 1) % 7;
   }
-  throw new Error(`no day in mask ${weekdays}`);
+  throw new ValidationError(`no day in mask ${weekdays}`);
 }
 
 // Returns the offset in ms between the given UTC instant and the local clock
@@ -93,7 +93,7 @@ export function oneTimeFireAt(
 ): number {
   const { h, m } = parseHHMM(time);
   const dateMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!dateMatch) throw new Error(`invalid date: ${date}`);
+  if (!dateMatch) throw new ValidationError(`invalid date: ${date}`);
   const [, y, mo, d] = dateMatch;
 
   // Treat (date, h, m) as if it were UTC, then correct by the tz's offset.

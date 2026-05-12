@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ConflictError } from "../src/lib/errors";
+import { ConflictError, InternalError, PastDateError, ValidationError } from "../src/lib/errors";
 import type { Env } from "../src/env";
 import type { Notification } from "../src/scheduler/user-do/types";
 
@@ -111,14 +111,25 @@ describe("POST /api/notifications", () => {
     expect(body).toMatchObject({ error: "conflict", message: /limit \(50\)/ });
   });
 
-  it("400 when DO returns a past-date validation error across RPC boundary", async () => {
-    stubMethods.create.mockRejectedValue(new Error("one-time reminder must be in the future"));
+  it("400 when DO returns a past-date error", async () => {
+    stubMethods.create.mockRejectedValue(new PastDateError());
     const { status, body } = await call("POST", "/api/notifications", validBody);
     expect(status).toBe(400);
-    expect(body).toEqual({
-      error: "past_date",
-      message: "one-time reminder must be in the future",
-    });
+    expect(body).toMatchObject({ error: "past_date" });
+  });
+
+  it("400 when DO returns a validation error", async () => {
+    stubMethods.create.mockRejectedValue(new ValidationError("invalid time: 25:99"));
+    const { status, body } = await call("POST", "/api/notifications", validBody);
+    expect(status).toBe(400);
+    expect(body).toMatchObject({ error: "validation_error", message: "invalid time: 25:99" });
+  });
+
+  it("500 with hidden details when DO returns an internal error", async () => {
+    stubMethods.create.mockRejectedValue(new InternalError("secret details"));
+    const { status, body } = await call("POST", "/api/notifications", validBody);
+    expect(status).toBe(500);
+    expect(body).toEqual({ error: "internal", message: "internal error" });
   });
 });
 

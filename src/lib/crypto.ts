@@ -8,6 +8,7 @@
 // The raw primitives (importKeyFromBase64, encryptWithKey, decryptWithKey)
 // are exported so the rotation script can share the exact same envelope
 // format. Don't reimplement the IV layout anywhere else.
+import { InternalError } from "./errors";
 import type { Env } from "../env";
 
 const enc = new TextEncoder();
@@ -29,7 +30,7 @@ export function bytesToB64(bytes: Uint8Array): string {
 export async function importKeyFromBase64(b64: string, label = "key"): Promise<CryptoKey> {
   const raw = b64ToBytes(b64);
   if (raw.length !== 32) {
-    throw new Error(`${label} must be 32 bytes (base64-encoded), got ${raw.length}`);
+    throw new InternalError(`${label} must be 32 bytes (base64-encoded), got ${raw.length}`);
   }
   return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
@@ -47,7 +48,7 @@ export async function encryptWithKey(key: CryptoKey, plaintext: string): Promise
 
 export async function decryptWithKey(key: CryptoKey, b64: string): Promise<string> {
   const data = b64ToBytes(b64);
-  if (data.length < 13) throw new Error("ciphertext too short");
+  if (data.length < 13) throw new InternalError("ciphertext too short");
   const iv = data.slice(0, 12);
   const ct = data.slice(12);
   const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
