@@ -1,12 +1,15 @@
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import type { DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { notifications } from "./schema";
 import { decryptMessage, encryptMessage } from "../../lib/crypto";
+import { ConflictError } from "../../lib/errors";
 import { bitmaskToDays, daysToBitmask } from "./mappers";
 import { nextRecurring, oneTimeFireAt } from "./time";
 import { refreshAlarm } from "./refresh-alarm";
 import type { Notification, NotificationInput, UpdateInput } from "./types";
 import type { Env } from "../../env";
+
+const MAX_NOTIFICATIONS = 50;
 
 type Schema = { notifications: typeof notifications };
 type Row = typeof notifications.$inferSelect;
@@ -33,6 +36,10 @@ export async function createNotification(
   ctx: Ctx,
   input: NotificationInput,
 ): Promise<Notification> {
+  const rows = await ctx.db.select({ count: count() }).from(notifications);
+  const total = rows[0]?.count ?? 0;
+  if (total >= MAX_NOTIFICATIONS) throw new ConflictError("reminder limit (50) reached");
+
   const id = crypto.randomUUID();
   const nextFireAt =
     input.kind === "recurring"
