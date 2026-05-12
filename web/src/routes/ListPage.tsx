@@ -4,7 +4,7 @@ import { useNotifications } from "../api/hooks";
 import { useMainButton } from "../lib/telegram";
 import { ReminderCard } from "../components/ReminderCard";
 import { EmptyState } from "../components/EmptyState";
-import { Skeleton } from "../components/Skeleton";
+import { Loading } from "../components/Loading";
 import css from "./ListPage.module.css";
 
 export default function ListPage() {
@@ -17,13 +17,7 @@ export default function ListPage() {
   useMainButton("Create Reminder", handleCreate);
 
   if (q.isLoading) {
-    return (
-      <div className={css.stack}>
-        <Skeleton />
-        <Skeleton />
-        <Skeleton />
-      </div>
-    );
+    return <Loading />;
   }
   if (q.error) {
     return (
