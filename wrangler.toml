@@ -47,3 +47,8 @@ dataset = "telegram_notify_events_staging"
 directory = "./web/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
+
+[[env.staging.rules]]
+type = "Text"
+globs = ["**/*.sql"]
+fallthrough = true
