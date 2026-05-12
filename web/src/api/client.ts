@@ -18,14 +18,7 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  list: (): Promise<{ items: Notification[] }> => {
-    if (window.__notificationsPromise) {
-      const p = window.__notificationsPromise as Promise<{ items: Notification[] }>;
-      window.__notificationsPromise = undefined;
-      return p;
-    }
-    return req<{ items: Notification[] }>("/notifications");
-  },
+  list: (): Promise<{ items: Notification[] }> => req<{ items: Notification[] }>("/notifications"),
   create: (body: CreateNotification) =>
     req<{ notification: Notification }>("/notifications", {
       method: "POST",
