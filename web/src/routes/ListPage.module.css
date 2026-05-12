@@ -1,0 +1,15 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.error {
+  background: rgba(255, 0, 0, 0.08);
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.retry {
+  margin-left: 8px;
+}

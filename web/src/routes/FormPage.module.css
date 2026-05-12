@@ -1,0 +1,31 @@
+.heading {
+  font-size: 22px;
+  margin-bottom: 18px;
+}
+
+.label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+
+.fieldError {
+  color: #d73a3a;
+  font-size: 13px;
+  margin-top: -8px;
+  margin-bottom: 12px;
+}
+
+.delete {
+  margin-top: 16px;
+  padding: 12px 16px;
+  width: 100%;
+  background: rgba(215, 58, 58, 0.12);
+  color: #d73a3a;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+}

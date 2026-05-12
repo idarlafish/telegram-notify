@@ -5,6 +5,7 @@ import { useMainButton } from "../lib/telegram";
 import { ReminderCard } from "../components/ReminderCard";
 import { EmptyState } from "../components/EmptyState";
 import { Skeleton } from "../components/Skeleton";
+import css from "./ListPage.module.css";
 
 export default function ListPage() {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export default function ListPage() {
 
   if (q.isLoading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className={css.stack}>
         <Skeleton />
         <Skeleton />
         <Skeleton />
@@ -26,9 +27,9 @@ export default function ListPage() {
   }
   if (q.error) {
     return (
-      <div style={{ background: "rgba(255,0,0,0.08)", padding: 14, borderRadius: 8 }}>
+      <div className={css.error}>
         Could not load reminders.{" "}
-        <button onClick={() => q.refetch()} style={{ marginLeft: 8 }}>
+        <button onClick={() => q.refetch()} className={css.retry}>
           Retry
         </button>
       </div>
@@ -37,7 +38,7 @@ export default function ListPage() {
   const items = q.data?.items ?? [];
   if (items.length === 0) return <EmptyState />;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className={css.stack}>
       {items.map((n) => (
         <ReminderCard key={n.id} n={n} />
       ))}

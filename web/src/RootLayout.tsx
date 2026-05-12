@@ -1,6 +1,7 @@
 import { Outlet } from "@tanstack/react-router";
 import { useEffect, type ReactNode, Component, type ErrorInfo } from "react";
 import { initTelegram, tg } from "./lib/telegram";
+import css from "./RootLayout.module.css";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -13,7 +14,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
   render() {
     if (this.state.error) {
-      return <div style={{ padding: 24 }}>An error occurred. Reopen the app.</div>;
+      return <div className={css.errorBoundary}>An error occurred. Reopen the app.</div>;
     }
     return this.props.children;
   }

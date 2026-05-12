@@ -10,6 +10,7 @@ import { DateField } from "../components/DateField";
 import { RepeatSelector } from "../components/RepeatSelector";
 import { DayPicker } from "../components/DayPicker";
 import type { WeekDay } from "../api/types";
+import css from "./FormPage.module.css";
 
 export default function FormPage() {
   const navigate = useNavigate();
@@ -33,9 +34,7 @@ export default function FormPage() {
         form.handleSubmit();
       }}
     >
-      <h1 style={{ fontSize: 22, marginBottom: 18 }}>
-        {isEdit ? "Edit reminder" : "New reminder"}
-      </h1>
+      <h1 className={css.heading}>{isEdit ? "Edit reminder" : "New reminder"}</h1>
 
       <form.Field name="time">
         {(f) => (
@@ -50,17 +49,7 @@ export default function FormPage() {
       <form.Field name="repeat">
         {(f) => (
           <>
-            <div
-              style={{
-                fontSize: 12,
-                textTransform: "uppercase",
-                letterSpacing: ".5px",
-                opacity: 0.7,
-                marginBottom: 6,
-              }}
-            >
-              Repeat
-            </div>
+            <div className={css.label}>Repeat</div>
             <RepeatSelector
               value={f.state.value}
               onChange={(v) => {
@@ -100,11 +89,7 @@ export default function FormPage() {
                       onChange={(v) => f.handleChange(v)}
                     />
                     {fieldError(f.state.meta.errors) && (
-                      <div
-                        style={{ color: "#d73a3a", fontSize: 13, marginTop: -8, marginBottom: 12 }}
-                      >
-                        {fieldError(f.state.meta.errors)}
-                      </div>
+                      <div className={css.fieldError}>{fieldError(f.state.meta.errors)}</div>
                     )}
                   </>
                 )}
@@ -136,21 +121,7 @@ export default function FormPage() {
       </form.Field>
 
       {isEdit && (
-        <button
-          type="button"
-          onClick={handleDelete}
-          style={{
-            marginTop: 16,
-            padding: "12px 16px",
-            width: "100%",
-            background: "rgba(215,58,58,0.12)",
-            color: "#d73a3a",
-            border: "none",
-            borderRadius: 8,
-            fontSize: 16,
-            cursor: "pointer",
-          }}
-        >
+        <button type="button" onClick={handleDelete} className={css.delete}>
           Delete
         </button>
       )}
