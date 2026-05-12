@@ -8,7 +8,8 @@ import {
   useUpdateNotification,
 } from "../api/hooks";
 import { ReminderFormSchema, type ReminderForm } from "./form-schema";
-import { ALL_DAYS, apiRowToForm, formToApiBody } from "../api/map";
+import { ALL_DAYS } from "../api/types";
+import { apiRowToForm, formToApiBody } from "../api/map";
 import { getTimezone, haptic, showAlert, showConfirm } from "./telegram";
 
 const DEFAULTS: ReminderForm = {

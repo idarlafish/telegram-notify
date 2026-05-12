@@ -1,10 +1,9 @@
 import css from "./styles.module.css";
+import { ALL_DAYS } from "../../api/types";
 import type { WeekDay } from "../../api/types";
 
-const DAYS: WeekDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const ALL: WeekDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const WEEKDAYS: WeekDay[] = ["mon", "tue", "wed", "thu", "fri"];
-const WEEKENDS: WeekDay[] = ["sat", "sun"];
+const WEEKDAYS: WeekDay[] = ALL_DAYS.slice(0, 5);
+const WEEKENDS: WeekDay[] = ALL_DAYS.slice(5);
 
 export function DayPicker(props: { value: WeekDay[]; onChange: (v: WeekDay[]) => void }) {
   const set = new Set(props.value);
@@ -13,7 +12,7 @@ export function DayPicker(props: { value: WeekDay[]; onChange: (v: WeekDay[]) =>
     const next = new Set(set);
     if (next.has(d)) next.delete(d);
     else next.add(d);
-    props.onChange(DAYS.filter((x) => next.has(x)));
+    props.onChange(ALL_DAYS.filter((x) => next.has(x)));
   }
 
   function isExact(preset: WeekDay[]) {
@@ -26,8 +25,8 @@ export function DayPicker(props: { value: WeekDay[]; onChange: (v: WeekDay[]) =>
         <button
           type="button"
           className={css.preset}
-          data-selected={isExact(ALL)}
-          onClick={() => props.onChange([...ALL])}
+          data-selected={isExact(ALL_DAYS)}
+          onClick={() => props.onChange([...ALL_DAYS])}
         >
           Daily
         </button>
@@ -49,7 +48,7 @@ export function DayPicker(props: { value: WeekDay[]; onChange: (v: WeekDay[]) =>
         </button>
       </div>
       <div className={css.row} role="group" aria-label="Days">
-        {DAYS.map((d) => (
+        {ALL_DAYS.map((d) => (
           <button
             key={d}
             type="button"

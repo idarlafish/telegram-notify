@@ -1,7 +1,5 @@
-import type { CreateNotification, Notification, WeekDay } from "./types";
+import type { CreateNotification, Notification } from "./types";
 import type { ReminderForm } from "../lib/form-schema";
-
-export const ALL_DAYS: WeekDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 export function formToApiBody(f: ReminderForm): CreateNotification {
   const base = { time: f.time, timezone: f.timezone, message: f.message };

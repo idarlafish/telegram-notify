@@ -1,5 +1,7 @@
 export type WeekDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
+export const ALL_DAYS: WeekDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
 export type Notification = {
   id: string;
   kind: "recurring" | "one_time";

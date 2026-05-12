@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useMatch, useNavigate } from "@tanstack/react-router";
 import { useReminderForm } from "../lib/use-reminder-form";
 import { fieldError } from "../lib/field-error";
-import { ALL_DAYS } from "../api/map";
+import { ALL_DAYS } from "../api/types";
 import { useBackButton, useMainButton } from "../lib/telegram";
 import { TimeField } from "../components/TimeField";
 import { MessageField } from "../components/MessageField";
