@@ -1,43 +1,50 @@
-import { describe, it, expect } from "vitest";
-import { is429, parseRetryAfter } from "../src/scheduler/user-do/delivery";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Env } from "../src/env";
 
-describe("is429", () => {
-  it("detects error_code 429", () => {
-    expect(is429({ error_code: 429, description: "Too Many Requests" })).toBe(true);
+const sendMessage = vi.hoisted(() => vi.fn());
+vi.mock("../src/telegram/bot", () => ({
+  createBot: () => ({ api: { sendMessage } }),
+}));
+
+import { deliver } from "../src/scheduler/user-do/delivery";
+
+const env = {} as Env;
+
+describe("deliver", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("detects message containing 'Too Many Requests'", () => {
-    expect(is429({ error_code: 400, message: "Too Many Requests: retry later" })).toBe(true);
+  it("returns ok when the message sends", async () => {
+    sendMessage.mockResolvedValue(undefined);
+    expect(await deliver(env, 1, "hi", "n1")).toEqual({ kind: "ok" });
   });
 
-  it("returns false for non-429 errors", () => {
-    expect(is429({ error_code: 400, description: "Bad Request" })).toBe(false);
+  it("classifies 429 as rate_limited with the server's retry_after", async () => {
+    sendMessage.mockRejectedValue({ error_code: 429, parameters: { retry_after: 15 } });
+    expect(await deliver(env, 1, "hi", "n1")).toEqual({ kind: "rate_limited", retryAfterMs: 15_000 });
   });
 
-  it("returns false for null/undefined/non-object", () => {
-    expect(is429(null)).toBe(false);
-    expect(is429(undefined)).toBe(false);
-    expect(is429("string")).toBe(false);
-  });
-});
-
-describe("parseRetryAfter", () => {
-  it("extracts retry_after from parameters", () => {
-    expect(parseRetryAfter({ parameters: { retry_after: 15 } })).toBe(15);
+  it("defaults rate_limited to 30s when the server omits retry_after", async () => {
+    sendMessage.mockRejectedValue({ error_code: 429, description: "Too Many Requests" });
+    expect(await deliver(env, 1, "hi", "n1")).toEqual({ kind: "rate_limited", retryAfterMs: 30_000 });
   });
 
-  it("defaults to 30 when retry_after is missing", () => {
-    expect(parseRetryAfter({ parameters: {} })).toBe(30);
-    expect(parseRetryAfter({ parameters: { retry_after: undefined } })).toBe(30);
+  it("classifies a blocked bot (403) as unreachable", async () => {
+    sendMessage.mockRejectedValue({
+      error_code: 403,
+      description: "Forbidden: bot was blocked by the user",
+    });
+    expect((await deliver(env, 1, "hi", "n1")).kind).toBe("unreachable");
   });
 
-  it("defaults to 30 when parameters object is missing", () => {
-    expect(parseRetryAfter({ error_code: 429 })).toBe(30);
+  it("classifies chat not found (400) as unreachable", async () => {
+    sendMessage.mockRejectedValue({ error_code: 400, description: "Bad Request: chat not found" });
+    expect((await deliver(env, 1, "hi", "n1")).kind).toBe("unreachable");
   });
 
-  it("defaults to 30 for null/undefined/non-object", () => {
-    expect(parseRetryAfter(null)).toBe(30);
-    expect(parseRetryAfter(undefined)).toBe(30);
-    expect(parseRetryAfter("string")).toBe(30);
+  it("classifies a server error as transient", async () => {
+    sendMessage.mockRejectedValue({ error_code: 500, description: "Internal Server Error" });
+    expect((await deliver(env, 1, "hi", "n1")).kind).toBe("transient");
   });
 });

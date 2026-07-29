@@ -3,14 +3,13 @@ import type { Env } from "../src/env";
 import type { AlarmCtx } from "../src/scheduler/user-do/alarm";
 
 const deliveryMocks = vi.hoisted(() => ({
-  sendNotification: vi.fn(),
-  is429: vi.fn(),
-  parseRetryAfter: vi.fn(),
+  deliver: vi.fn(),
 }));
 vi.mock("../src/scheduler/user-do/delivery", () => deliveryMocks);
 
 const profileMocks = vi.hoisted(() => ({
   getProfile: vi.fn(),
+  destroyProfile: vi.fn(),
 }));
 vi.mock("../src/scheduler/user-do/profile", () => profileMocks);
 
@@ -43,6 +42,7 @@ type DueRow = {
   time: string;
   timezone: string;
   weekdays: number | null;
+  next_fire_at: number;
 };
 
 function dueRow(partial: Partial<DueRow> & Pick<DueRow, "id">): DueRow {
@@ -53,6 +53,7 @@ function dueRow(partial: Partial<DueRow> & Pick<DueRow, "id">): DueRow {
     time: partial.time ?? "10:00",
     timezone: partial.timezone ?? "Europe/Helsinki",
     weekdays: partial.weekdays ?? 1,
+    next_fire_at: partial.next_fire_at ?? Date.now(),
   };
 }
 
@@ -91,9 +92,7 @@ describe("fireAndAdvance", () => {
     profileMocks.getProfile.mockResolvedValue({ chat_id: 42, created_at: 0 });
     decryptMessageMock.mockResolvedValue("plain text");
     nextRecurringMock.mockReturnValue(Date.now() + 86_400_000);
-    deliveryMocks.is429.mockReturnValue(false);
-    deliveryMocks.parseRetryAfter.mockReturnValue(30);
-    deliveryMocks.sendNotification.mockResolvedValue(undefined);
+    deliveryMocks.deliver.mockResolvedValue({ kind: "ok" });
   });
 
   afterEach(() => {
@@ -101,18 +100,10 @@ describe("fireAndAdvance", () => {
   });
 
   it("uses the max retry_after when multiple notifications are rate limited", async () => {
-    deliveryMocks.sendNotification.mockImplementation(async (_env, _chatId, _text, id: string) => {
-      if (id === "a") throw { tag: "rate", retryAfter: 3 };
-      if (id === "b") throw { tag: "rate", retryAfter: 9 };
-    });
-    deliveryMocks.is429.mockImplementation((err: unknown) => {
-      return typeof err === "object" && err !== null && "tag" in err;
-    });
-    deliveryMocks.parseRetryAfter.mockImplementation((err: unknown) => {
-      if (typeof err === "object" && err !== null && "retryAfter" in err) {
-        return Number((err as { retryAfter: number }).retryAfter);
-      }
-      return 30;
+    deliveryMocks.deliver.mockImplementation(async (_env, _chatId, _text, id: string) => {
+      if (id === "a") return { kind: "rate_limited", retryAfterMs: 3_000 };
+      if (id === "b") return { kind: "rate_limited", retryAfterMs: 9_000 };
+      return { kind: "ok" };
     });
 
     const { ctx, setAlarm } = makeCtx([dueRow({ id: "a" }), dueRow({ id: "b" })]);
@@ -125,9 +116,10 @@ describe("fireAndAdvance", () => {
     expect(refreshAlarmMock).not.toHaveBeenCalled();
   });
 
-  it("continues processing all due notifications and schedules fallback on unexpected errors", async () => {
-    deliveryMocks.sendNotification.mockImplementation(async (_env, _chatId, _text, id: string) => {
-      if (id === "bad") throw new Error("boom");
+  it("continues processing all due notifications and schedules fallback on transient errors", async () => {
+    deliveryMocks.deliver.mockImplementation(async (_env, _chatId, _text, id: string) => {
+      if (id === "bad") return { kind: "transient", error: "boom" };
+      return { kind: "ok" };
     });
 
     const { ctx, setAlarm, updateSet } = makeCtx([
@@ -138,7 +130,7 @@ describe("fireAndAdvance", () => {
 
     await fireAndAdvance(ctx);
 
-    expect(deliveryMocks.sendNotification).toHaveBeenCalledTimes(2);
+    expect(deliveryMocks.deliver).toHaveBeenCalledTimes(2);
     expect(updateSet).toHaveBeenCalledOnce();
     expect(setAlarm).toHaveBeenCalledOnce();
     expect(setAlarm).toHaveBeenCalledWith(now + 60_000);
@@ -153,5 +145,123 @@ describe("fireAndAdvance", () => {
     expect(deleteWhere).toHaveBeenCalledOnce();
     expect(refreshAlarmMock).toHaveBeenCalledOnce();
     expect(setAlarm).not.toHaveBeenCalled();
+  });
+
+  it("skips a stale recurring row without sending and advances it", async () => {
+    const now = Date.now();
+    const { ctx, updateSet } = makeCtx([
+      dueRow({ id: "stale", kind: "recurring", next_fire_at: now - 6 * 60_000 }),
+    ]);
+
+    await fireAndAdvance(ctx);
+
+    expect(deliveryMocks.deliver).not.toHaveBeenCalled();
+    expect(updateSet).toHaveBeenCalledOnce();
+    expect(logEventMock).toHaveBeenCalledWith(expect.anything(), "alarm_skip", {
+      id: "stale",
+      kind: "recurring",
+    });
+    expect(refreshAlarmMock).toHaveBeenCalledOnce();
+  });
+
+  it("skips a stale one-time row without sending and deletes it", async () => {
+    const now = Date.now();
+    const { ctx, deleteWhere } = makeCtx([
+      dueRow({ id: "stale1", kind: "one_time", next_fire_at: now - 6 * 60_000 }),
+    ]);
+
+    await fireAndAdvance(ctx);
+
+    expect(deliveryMocks.deliver).not.toHaveBeenCalled();
+    expect(deleteWhere).toHaveBeenCalledOnce();
+    expect(refreshAlarmMock).toHaveBeenCalledOnce();
+  });
+
+  it("sends fresh due rows and advances stale rows in the same alarm", async () => {
+    const now = Date.now();
+    const { ctx, updateSet } = makeCtx([
+      dueRow({ id: "fresh", kind: "recurring", next_fire_at: now }),
+      dueRow({ id: "stale", kind: "recurring", next_fire_at: now - 6 * 60_000 }),
+    ]);
+
+    await fireAndAdvance(ctx);
+
+    expect(deliveryMocks.deliver).toHaveBeenCalledOnce();
+    expect(deliveryMocks.deliver).toHaveBeenCalledWith(expect.anything(), 42, "plain text", "fresh");
+    expect(updateSet).toHaveBeenCalledTimes(2);
+    expect(refreshAlarmMock).toHaveBeenCalledOnce();
+  });
+
+  it("purges the user when delivery reports the recipient is unreachable", async () => {
+    deliveryMocks.deliver.mockResolvedValue({
+      kind: "unreachable",
+      reason: "Forbidden: bot was blocked by the user",
+    });
+
+    const now = Date.now();
+    const { ctx, del, deleteWhere, setAlarm } = makeCtx([
+      dueRow({ id: "blocked", kind: "recurring", next_fire_at: now }),
+    ]);
+
+    await fireAndAdvance(ctx);
+
+    expect(del).toHaveBeenCalledOnce();
+    expect(deleteWhere).not.toHaveBeenCalled();
+    expect(profileMocks.destroyProfile).toHaveBeenCalledOnce();
+    expect(refreshAlarmMock).not.toHaveBeenCalled();
+    expect(setAlarm).not.toHaveBeenCalled();
+  });
+
+  it("logs the error detail on a transient outcome", async () => {
+    deliveryMocks.deliver.mockResolvedValue({ kind: "transient", error: "boom" });
+    const { ctx } = makeCtx([dueRow({ id: "t", kind: "recurring", next_fire_at: Date.now() })]);
+
+    await fireAndAdvance(ctx);
+
+    expect(logEventMock).toHaveBeenCalledWith(expect.anything(), "alarm_fire", {
+      id: "t",
+      kind: "recurring",
+      outcome: "transient",
+      error: "boom",
+    });
+  });
+
+  it("logs the reason on an unreachable outcome", async () => {
+    deliveryMocks.deliver.mockResolvedValue({ kind: "unreachable", reason: "bot blocked" });
+    const { ctx } = makeCtx([dueRow({ id: "u", kind: "recurring", next_fire_at: Date.now() })]);
+
+    await fireAndAdvance(ctx);
+
+    expect(logEventMock).toHaveBeenCalledWith(expect.anything(), "alarm_fire", {
+      id: "u",
+      kind: "recurring",
+      outcome: "unreachable",
+      reason: "bot blocked",
+    });
+  });
+
+  it("isolates a decryption failure as a transient outcome without aborting the batch", async () => {
+    decryptMessageMock.mockImplementation(async (_env: Env, msg: string) => {
+      if (msg === "bad-cipher") throw new Error("decrypt failed");
+      return "plain text";
+    });
+    const now = Date.now();
+    const { ctx, updateSet, setAlarm } = makeCtx([
+      dueRow({ id: "bad", kind: "recurring", message: "bad-cipher", next_fire_at: now }),
+      dueRow({ id: "good", kind: "recurring", message: "ok-cipher", next_fire_at: now }),
+    ]);
+
+    await fireAndAdvance(ctx);
+
+    expect(deliveryMocks.deliver).toHaveBeenCalledOnce();
+    expect(deliveryMocks.deliver).toHaveBeenCalledWith(expect.anything(), 42, "plain text", "good");
+    expect(updateSet).toHaveBeenCalledOnce();
+    expect(setAlarm).toHaveBeenCalledWith(now + 60_000);
+    expect(logEventMock).toHaveBeenCalledWith(expect.anything(), "alarm_fire", {
+      id: "bad",
+      kind: "recurring",
+      outcome: "transient",
+      error: "Error: decrypt failed",
+    });
   });
 });

@@ -1,11 +1,11 @@
-import { and, eq, gt, lte } from "drizzle-orm";
+import { eq, lte } from "drizzle-orm";
 import type { DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { notifications } from "./schema";
 import { decryptMessage } from "../../lib/crypto";
 import { nextRecurring } from "./time";
 import { refreshAlarm } from "./refresh-alarm";
-import { getProfile } from "./profile";
-import { is429, parseRetryAfter, sendNotification } from "./delivery";
+import { destroyProfile, getProfile } from "./profile";
+import { deliver, type DeliveryOutcome } from "./delivery";
 import { logger } from "../../lib/logger";
 import type { Env } from "../../env";
 
@@ -25,12 +25,25 @@ export async function fireAndAdvance(ctx: AlarmCtx): Promise<void> {
   if (!profile) return;
 
   const now = Date.now();
-  const due = await ctx.db
+  const pastDue = await ctx.db
     .select()
     .from(notifications)
-    .where(
-      and(lte(notifications.next_fire_at, now), gt(notifications.next_fire_at, now - LOOKBACK_MS)),
-    );
+    .where(lte(notifications.next_fire_at, now));
+
+  const stale = pastDue.filter((n) => n.next_fire_at <= now - LOOKBACK_MS);
+  const due = pastDue.filter((n) => n.next_fire_at > now - LOOKBACK_MS);
+
+  for (const n of stale) {
+    if (n.kind === "one_time") {
+      await ctx.db.delete(notifications).where(eq(notifications.id, n.id));
+    } else {
+      await ctx.db
+        .update(notifications)
+        .set({ next_fire_at: nextRecurring(n.time, n.timezone, n.weekdays!, now) })
+        .where(eq(notifications.id, n.id));
+    }
+    logger.event(ctx.env, "alarm_skip", { id: n.id, kind: n.kind });
+  }
 
   if (due.length === 0) {
     await refreshAlarm(ctx.db, ctx.storage);
@@ -39,53 +52,45 @@ export async function fireAndAdvance(ctx: AlarmCtx): Promise<void> {
 
   const outcomes = await Promise.all(
     due.map(async (n) => {
+      let outcome: DeliveryOutcome;
       try {
-        await sendNotification(
-          ctx.env,
-          profile.chat_id,
-          await decryptMessage(ctx.env, n.message),
-          n.id,
-        );
-        if (n.kind === "one_time") {
-          await ctx.db.delete(notifications).where(eq(notifications.id, n.id));
-        } else {
-          await ctx.db
-            .update(notifications)
-            .set({
-              last_sent_at: now,
-              next_fire_at: nextRecurring(n.time, n.timezone, n.weekdays!, now),
-            })
-            .where(eq(notifications.id, n.id));
+        const text = await decryptMessage(ctx.env, n.message);
+        outcome = await deliver(ctx.env, profile.chat_id, text, n.id);
+        if (outcome.kind === "ok") {
+          if (n.kind === "one_time") {
+            await ctx.db.delete(notifications).where(eq(notifications.id, n.id));
+          } else {
+            await ctx.db
+              .update(notifications)
+              .set({
+                last_sent_at: now,
+                next_fire_at: nextRecurring(n.time, n.timezone, n.weekdays!, now),
+              })
+              .where(eq(notifications.id, n.id));
+          }
         }
-        logger.event(ctx.env, "alarm_fire", { id: n.id, kind: n.kind, outcome: "ok" });
-        return { kind: "ok" as const };
       } catch (err) {
-        if (is429(err)) {
-          const retryAfterMs = parseRetryAfter(err) * 1000;
-          logger.event(ctx.env, "alarm_fire", {
-            id: n.id,
-            kind: n.kind,
-            outcome: "rate_limited",
-          });
-          return { kind: "rate_limited" as const, retryAfterMs };
-        }
-
-        logger.event(ctx.env, "alarm_fire", {
-          id: n.id,
-          kind: n.kind,
-          outcome: "error",
-          error: String(err),
-        });
-        return { kind: "error" as const };
+        outcome = { kind: "transient", error: String(err) };
       }
+      const fields: Record<string, unknown> = { id: n.id, kind: n.kind, outcome: outcome.kind };
+      if (outcome.kind === "transient") fields.error = outcome.error;
+      if (outcome.kind === "unreachable") fields.reason = outcome.reason;
+      logger.event(ctx.env, "alarm_fire", fields);
+      return outcome;
     }),
   );
+
+  if (outcomes.some((outcome) => outcome.kind === "unreachable")) {
+    await ctx.db.delete(notifications);
+    await destroyProfile(ctx.storage);
+    return;
+  }
 
   const maxRetryAfterMs = outcomes.reduce<number>(
     (max, outcome) => (outcome.kind === "rate_limited" ? Math.max(max, outcome.retryAfterMs) : max),
     0,
   );
-  const hasError = outcomes.some((outcome) => outcome.kind === "error");
+  const hasError = outcomes.some((outcome) => outcome.kind === "transient");
 
   if (hasError) {
     await ctx.storage.setAlarm(Date.now() + Math.max(maxRetryAfterMs, FALLBACK_RETRY_MS));

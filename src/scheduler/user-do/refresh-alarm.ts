@@ -4,6 +4,8 @@ import { notifications } from "./schema";
 
 type Schema = { notifications: typeof notifications };
 
+const PAST_ALARM_GUARD_MS = 60_000;
+
 export async function refreshAlarm(
   db: DrizzleSqliteDODatabase<Schema>,
   storage: DurableObjectStorage,
@@ -14,6 +16,7 @@ export async function refreshAlarm(
   if (row?.min == null) {
     await storage.deleteAlarm();
   } else {
-    await storage.setAlarm(row.min);
+    const now = Date.now();
+    await storage.setAlarm(row.min <= now ? now + PAST_ALARM_GUARD_MS : row.min);
   }
 }
