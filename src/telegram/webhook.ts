@@ -1,8 +1,13 @@
-import { webhookCallback } from "grammy";
+import { webhookCallback, type Context, type NextFunction } from "grammy";
 import { createBot } from "./bot";
 import { registerCommands } from "./commands/index";
 import { logger } from "../lib/logger";
 import type { Env } from "../env";
+
+export function logUpdate(ctx: Context, next: NextFunction): Promise<void> {
+  logger.info("webhook received", { update_id: ctx.update.update_id });
+  return next();
+}
 
 export async function handleTelegramWebhook(request: Request, env: Env): Promise<Response> {
   const sec = request.headers.get("x-telegram-bot-api-secret-token");
@@ -23,12 +28,10 @@ export async function handleTelegramWebhook(request: Request, env: Env): Promise
       update_id: err.ctx.update.update_id,
     });
   });
+  bot.use(logUpdate);
   registerCommands(bot, env);
 
   try {
-    logger.info("webhook received", {
-      update_id: ((await request.clone().json()) as { update_id?: number }).update_id,
-    });
     return await webhookCallback(bot, "cloudflare-mod")(request);
   } catch (err) {
     // Always 200 — Telegram retries are noisy and errors are usually our bug.
