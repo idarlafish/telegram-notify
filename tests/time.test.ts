@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextRecurring, oneTimeFireAt } from "../src/scheduler/user-do/time";
 
 describe("nextRecurring", () => {
@@ -66,6 +66,14 @@ describe("nextRecurring", () => {
 });
 
 describe("oneTimeFireAt", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("computes UTC ms for a future date+time in Tokyo (UTC+9)", () => {
     expect(oneTimeFireAt("2026-05-20", "14:30", "Asia/Tokyo")).toBe(
       Date.UTC(2026, 4, 20, 5, 30, 0),
