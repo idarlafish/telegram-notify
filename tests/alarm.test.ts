@@ -187,7 +187,12 @@ describe("fireAndAdvance", () => {
     await fireAndAdvance(ctx);
 
     expect(deliveryMocks.deliver).toHaveBeenCalledOnce();
-    expect(deliveryMocks.deliver).toHaveBeenCalledWith(expect.anything(), 42, "plain text", "fresh");
+    expect(deliveryMocks.deliver).toHaveBeenCalledWith(
+      expect.anything(),
+      42,
+      "plain text",
+      "fresh",
+    );
     expect(updateSet).toHaveBeenCalledTimes(2);
     expect(refreshAlarmMock).toHaveBeenCalledOnce();
   });

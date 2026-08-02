@@ -22,12 +22,18 @@ describe("deliver", () => {
 
   it("classifies 429 as rate_limited with the server's retry_after", async () => {
     sendMessage.mockRejectedValue({ error_code: 429, parameters: { retry_after: 15 } });
-    expect(await deliver(env, 1, "hi", "n1")).toEqual({ kind: "rate_limited", retryAfterMs: 15_000 });
+    expect(await deliver(env, 1, "hi", "n1")).toEqual({
+      kind: "rate_limited",
+      retryAfterMs: 15_000,
+    });
   });
 
   it("defaults rate_limited to 30s when the server omits retry_after", async () => {
     sendMessage.mockRejectedValue({ error_code: 429, description: "Too Many Requests" });
-    expect(await deliver(env, 1, "hi", "n1")).toEqual({ kind: "rate_limited", retryAfterMs: 30_000 });
+    expect(await deliver(env, 1, "hi", "n1")).toEqual({
+      kind: "rate_limited",
+      retryAfterMs: 30_000,
+    });
   });
 
   it("classifies a blocked bot (403) as unreachable", async () => {
