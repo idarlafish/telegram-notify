@@ -14,9 +14,7 @@ export function createApp() {
   app.route("/api/notifications", notificationsRoutes);
   app.route("/api/users", usersRoutes);
 
-  // Anything not matched above is a frontend route — hand it to the asset
-  // binding, which serves real files or falls back to index.html (SPA mode).
-  app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
+  app.all("*", (c) => c.text("Not found", 404));
 
   app.onError(errorHandler);
   return app;
