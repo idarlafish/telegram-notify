@@ -26,7 +26,7 @@ A self-hosted reminder bot for Telegram, deployed as a single Cloudflare Worker.
 
 - **Telegram's Bot API has no scheduled messages** — the original constraint that made this project necessary. Any reminder bot has to run its own scheduler.
 - **Sub-second precision** — alarms fire from per-user Durable Objects, not a 30–90s polling cron
-- **Zero external dependencies** — Cloudflare Workers + Durable Objects + Telegram are the entire runtime. No Redis, no queue, no third-party scheduler
+- **No extra infrastructure** — Durable Objects provides state _and_ scheduling in one, so there's no Redis, queue, separate scheduler, or database to run alongside it. The only dependencies are the Cloudflare runtime and Telegram.
 - **Single atomic deploy** — backend, frontend (Mini App), and storage migrations ship together
 - **Fork-friendly** — designed to run on your own Cloudflare account and your own bot
 
